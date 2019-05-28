@@ -31,7 +31,7 @@ def parse_cyto_dir(cytodir: str, strongr: bool = True) -> pd.DataFrame:
         if content.is_file() and content.name.endswith(".CEL")
     }
 
-    return pandas.DataFrame(samples).T
+    return pd.DataFrame(samples).T
 
 
 def parse_onco_dir(oncodir: str, strongr: bool = True) -> pd.DataFrame:
@@ -42,7 +42,7 @@ def parse_onco_dir(oncodir: str, strongr: bool = True) -> pd.DataFrame:
     oncodir = Path(oncodir)
     print(f"Oncoscan path identified as: {str(oncodir)}", file=sys.stderr)
     # Define column names
-    sample "Sample_id" if strongr else "SampleName"
+    sample = "Sample_id" if strongr else "SampleName"
     at = "ATChannelCel"
     cg = "GCChannelCel"
     # Parse file names
@@ -56,13 +56,13 @@ def parse_onco_dir(oncodir: str, strongr: bool = True) -> pd.DataFrame:
         if content.is_file() and content.name.endswith("A.CEL")
     }
 
-    return pandas.DataFrame(samples).T
+    return pd.DataFrame(samples).T
 
 
 if __name__ == '__main__':
     main_parser = ArgumentParser(
         description="prepare_design aims to generate your design file from "
-                    "a given repository."
+                    "a given repository.",
         epilog="This script does not make any magic. Please check the prepared"
                " design!",
     )
@@ -85,7 +85,7 @@ if __name__ == '__main__':
         "-e", "--eacon",
         help="Design file is meant to be used by EaCoN itself, "
              "and not STRonGR",
-        action="store_true"
+        action="store_false"
     )
 
     cel_type = main_parser.add_mutually_exclusive_group(required=True)
@@ -110,4 +110,4 @@ if __name__ == '__main__':
     else:
         raise ValueError("I don't know what type of CEL files are here")
 
-    data.to_csv(design, sep="\t", index=False)
+    data.to_csv(args.design, sep="\t", index=False)
