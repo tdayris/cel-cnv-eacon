@@ -11,6 +11,24 @@ from argparse import ArgumentParser  # Parse command line
 from pathlib import Path             # Paths related methods
 
 
+def guess_array_type(raw_data: Path) -> str:
+    """
+    Guess array type, just like its name suggested
+    """
+    onco = all(
+        # ATChannelCel files end with _A.CEL
+        # GCChannelCel files end with _C.CEL
+        f.name.endswith("(A|C).CEL")
+        for f in raw_data.iterdir()
+        if f.name .endswith("CEL")
+    )
+
+    # For now, no other array types are available
+    if onco is True:
+        return "oncoscan"
+    return "cytoscan"
+
+
 def parse_cyto_dir(cytodir: str, strongr: bool = True) -> pd.DataFrame:
     """
     Build a design file from a cytoscan directory
@@ -52,7 +70,7 @@ def parse_onco_dir(oncodir: str, strongr: bool = True) -> pd.DataFrame:
             at: str(content.absolute()),
             cg: str(content.absolute()).replace("A.CEL", "C.CEL")
         }
-        for content in cytodir.iterdir()
+        for content in oncodir.iterdir()
         if content.is_file() and content.name.endswith("A.CEL")
     }
 
@@ -88,26 +106,24 @@ if __name__ == '__main__':
         action="store_false"
     )
 
-    cel_type = main_parser.add_mutually_exclusive_group(required=True)
-
-    cel_type.add_argument(
-        "-c", "--cytoscan",
-        help="The parsed repository contains Cytoscan data",
-        action='store_true'
-    )
-
-    cel_type.add_argument(
-        "-o", "--oncoscan",
-        help="The parsed repository contains Oncoscan data",
-        action="store_true"
-    )
+    # cel_type = main_parser.add_mutually_exclusive_group(required=True)
+    #
+    # cel_type.add_argument(
+    #     "-c", "--cytoscan",
+    #     help="The parsed repository contains Cytoscan data",
+    #     action='store_true'
+    # )
+    #
+    # cel_type.add_argument(
+    #     "-o", "--oncoscan",
+    #     help="The parsed repository contains Oncoscan data",
+    #     action="store_true"
+    # )
 
     args = main_parser.parse_args()
-    if args.cytoscan is True:
+    if guess_array_type == "cytoscan":
         data = parse_cyto_dir(str(args.rawdata), args.eacon is True)
-    elif args.oncoscan is True:
-        data = parse_onco_dir(str(args.rawdata), args.eacon is True)
     else:
-        raise ValueError("I don't know what type of CEL files are here")
+        data = parse_onco_dir(str(args.rawdata), args.eacon is True)
 
     data.to_csv(args.design, sep="\t", index=False)
