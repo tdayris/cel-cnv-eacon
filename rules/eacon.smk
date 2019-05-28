@@ -58,7 +58,7 @@ rule EaCoN_process:
 """
 This rule performs segmentation
 """
-rule EaCoN__segment:
+rule EaCoN_segment:
     input:
         rds = os.path.join(
             "{sample}",
@@ -105,7 +105,7 @@ rule EaCoN__segment:
 """
 This rule tries to build a copy number model
 """
-rule EaCoN__ascn:
+rule EaCoN_ascn:
     input:
         os.sep.join([
             "{sample}", config["segmenter"], "L2R",
@@ -139,7 +139,7 @@ rule EaCoN__ascn:
 """
 This rule writes a HTML report
 """
-rule EaCoN__Annotate:
+rule EaCoN_Annotate:
     input:
         rds = os.sep.join([
             "{sample}", config["segmenter"], "L2R",
@@ -182,7 +182,7 @@ rule EaCoN__Annotate:
         err = os.path.join(config["log_directory"], "{sample}_Annotation.err")
     shell:
         "{config[module][EaCoN_]}"  # Module loading
-        " export PATH=${{PATH}}:{config[output_directory]} &&"  # Get grd
+        " export PATH=${{PATH}}:{config[scripts]} &&"  # Get grd
         " R -e 'library(\"EaCoN\");"  # Loading EaCoN
         " EaCoN::Annotate.ff("  # Functio
         " RDS.file = \"{input.rds}\","  # Path to RDSn

@@ -126,7 +126,8 @@ if __name__ == '__main__':
     config_params = {
         "segmenter": args.segmenter,
         "genome": args.genome,
-        "ldb": args.ldb
+        "ldb": args.ldb,
+        "scripts": str(Path(__file__).parent)
     }
     if guess_array_type(Path(args.rawdata)) == "CytoScanHD_Array":
         config_params.update(**{

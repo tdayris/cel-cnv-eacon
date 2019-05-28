@@ -1,0 +1,2411 @@
+#!/usr/bin/perl
+use strict;
+
+
+my $version = '1.7 20160830';
+
+## VERSION NOTES
+##
+##
+## v1.8 20160931
+##	. Changed HTML/TXT output formats for cc_categ mode (now displaying the median log2(ratio) of each category.
+##	. Debugged wrong table formatting in HTML for cc_categ mode.
+##	. Added support for cc_conti mode (partly supported before).
+##	. Debugged stroke format for gene names (such case made UCSC link unavailable).
+##	. Cleaned the code (old commented parts removed).
+##
+## v1.7 20160830
+##	. Now the input files are expected at the end of the call (more POSIX-compliant).
+##	. Added missing informative columns in the genes.grd output (format-specific data).
+##
+## v1.6 20160728
+##	. Updated the HGNC HUGO source.
+##	. Modified handling of HGNC HUGO source (public format changed).
+##	. Reintroduced info from the COSMIC Gene Census (for oncogenes/t-sup/mixed/other cancer genes).
+##	. Removed ATLAS info. Thus, dropped support for genes_gc.txt source.
+##	. Changed genes source from UCSC knownGene (clusterized) to refGene (RefSeq Genes with UCSC genomic
+##	  coordinates), as UCSC kG contains only 15,515 symbols (of which only 11,707 are official,
+##	  according to HGNC Hugo) and refGene contains 27,083 symbols (24,726 in Hugo).
+##	. Replaced the (unsupported) <blink> HTML balise for <s> (stroke) for fusion genes
+##	. Replaced yellow background coloring for cancer keyword by the <mark> HTML balise.
+##	. Updated the HGNC, MGI and RGD files
+##	. Dropped support for pelican mount points. Replaced both -proj and -db options by -ldb
+##	  targetting towards a path to a local mirror of public datablases (by default /mnt/data_cigogne/bioinfo)
+##	. Added support for hg17 to hg38, mm8 to mm10, rn4 to rn6.
+##	. Modified table structure for the cc_categ and cc_conti modes (due to changes in clicoM).
+##	. FEW BUGS TO SOLVE LATER :
+##		* Re-integrate gene description (from official symbols file)
+##		* Remove all references to knownGene and subsequent tables (kg*)
+##		* Correct table when multiple subcolumns (subtables width is limited to the width of the
+##		  first column of the main table).
+##		* Port everything to R ? =P
+##
+## v1.5 20160719
+##	. Added support for clicoM "continuous".
+##
+## v1.4 20140911
+##	. Changed option names to be more POSIX-compliant.
+##
+## v1.3c 20140908
+##      . Improved Javascript code in HTML report (toggle function) - Yannick Boursin
+##
+## v1.3b 20140507
+##	. Various minor, invisible corrections (traces of hg17, obsolete comments, misplaced chomp of @ARGS)
+##
+## v1.3 20140327
+##	. Removed segmental duplications (SegDups) support for mm, replaced by microsatellites for both mm and rn.
+##	  Tables are from the UCSC (microsat.sp)
+##	. Added support for ratus norvegicus (tested with p2c mode).
+##	. Currently only rn4 is supported (at of today, rn5 lacks public data information).
+##
+## v1.2e 20140226
+##	. Updated the UCSC tables for hg19.
+##	. Adaptated to new UCSC name and format (new columns, new indeces) for DGV data (dgv.hgXX -> dgvMerged.hgXX).
+##	. Changed the link for DGV to the v2 website.
+##
+## v1.2d 20130923
+##	. Updated the MGI data file for mm.
+##	. Updated the HGNC HUGO for hs.
+##	. Updated the TICDB to v3.2 (2013/03).
+##	. Added support for mm10.
+##	. Switched mirna source from mirDB to miRBase for all genomes and builds.
+##	. Corrected a bug for mm, linked to updated MGI data file format (no gene was found).
+##
+## v1.2c 20121210
+##	. Modified $ctdpathfile name (CTD changed their filename).
+##	. Changed blocks for CTD data files (CTD added several comments lines in their headers).
+##	. Changed block for MGI data (MGI changed their file structure, adding new intermediary columns).
+##	. Changed source files parsing from FOREACH to WHILE (uses less RAM).
+##
+## v1.2b 20121105
+##	. Corrected a bug making genes description non-appearing when they did not contain a cancer keyword.
+##
+## v1.2 20121001
+##	. Added text (tsv) output files for genes subtable.
+##	. Updated script to support new table format from the CTD (OrganismId now in column 7 instead of 6).
+##	. Fixed a bug which broke the blinking display of fusion genes.
+##
+## v1.1c 20120131 *happy birthday Cath!*
+##	. Changed the requested columns in the genes_gc.txt datafile for the Census value (which
+##	  unexpectedly moved from 64 to 59 without warning...)
+##
+## v1.1b 20111221
+##	. Added support for the "Freq" column for GISTIC2 results.
+##
+## v1.1 20111220
+##	. Added support for gaia (MCR search) results.
+##	. Added support for GISTIC2 (MCR search) results.
+##	. Added missing columns descriptions in HTML, for format-specific columns.
+##
+## v1.0b 20111215
+##	. Added missing parameter '-db'.
+##	. Corrected a bug which prevented ALL options to be used...
+##	. Corrected a bug for 'solo' mode, where ratios values were those of log2(ratio).
+##	. Corrected a bug where links to mirbase were build for snoRNAs.
+##	. Added columns descriptions using the HTML 'title' attribute for common columns.
+##	. Corrected a typo ('fur' instead of 'for'. Auf Englisch bitte!).
+##
+## v1.0 20111213
+##	. Rewrote the script from scratch, from the genrdescM script v4.0b
+##	. Removed the chemicals output. It has to be handled by another script, that's too much stuff for
+##		this one.
+##	. Added structural support for other species. Now species and genome build have to
+##		be specified by two different options : -sp and -gv.
+##	. Added complete support for  mus musculus species.
+##	. Removed the -l2m option (minimal log2(ratio) value). This has to be handled by the lst2grdM script
+##		itself, more logical (code brewing needed here!).
+##	. Replaced the 'comp' mode by two modes : 'p2c' and 's2c', for output files from the pro2comp.R
+##		and seg2comp.R.
+##	. Added an option to specify the mount point for pelican '/proj', so that the script may be
+##		executed from whichever system which has a mounting point on /proj.
+##	. Same for '/db'.
+##	. Added new UCSC datafiles (to /proj/cgh) : keggMapDesc and knownToKeggEntrez, to have KEGG pathways
+##	  annotations for mus musculus (hs also present), as this species is not covered by the CTD annotations
+##	  from KEGG/Reactome (only available for human). So, now pathways annotations will use KEGG for mus,
+##	  and KEGG+CTD for hs.
+##	. Changed color scheme to the new recommendations (blue for gains).
+##	. Fusion genes : switched to the more recent TICdb information (v3.0).
+##	. Fusion genes : added data from the ChimerDB v2.0 for human, v1.0 four mouse (v2.0 mouse doesn't exist).
+##	. Changed the data source for DGV info from /db/dgv to /proj/cgh, using unmodified UCSC tables.
+##	. Changed the data source for miRNA info from /db/miRNA (human only...) to /proj/cgh,
+##		using unmodified UCSC tables.
+##	. Removed the -sort option, incompatible with the new HTML output format, organized by chromosomes.
+##	. Removed the "fusion gene column" from the HTML output, but the "blink" tag is kept, to gain a bit of space
+##	. Renamed the 'mcr' mode to 'stac', as other MCR tools may be used now.
+##	. Even being more complicated, (support for different species) the code is 10% lighter. However, MUCH
+##	  imporvement can still be made !!!
+##	. Added a link for mir target genes to microrna.org
+##	. Modified the search for cancer word to use lowercase in all circumstances. Without this modification,
+##		first word of pathways descriptions was missed due to the first letter capitalization.
+
+## VERSION NOTES FROM genrdescM
+##
+## v4.0b 20110511
+##	. Correction d'un bug dans l'appel au fichier de données de position des miRNA en build hg19,
+##		qui pointait vers la version hg18...
+##
+##
+## v4.0 ->	. Ajout d'un nouveau mode '-comp' correspondant aux comparaisons de deux profils CGH, supportant
+##			 le format de fichier '*.c2c' en sortie du script CGH2comp2.R
+##
+## v3.6b ->	. Reversion pour les colorations de log2ratio : vert pour ampli, rouge pour délétion
+##		. Les seuils pour coloration ou mise en gras des log2ratios sont désormais paramétrables
+##			  via les options -gcol (couleur en gain) -lcol (couleur en perte) et -bold (mise en gras,
+##			  la valeur donnée étant considérée en valeur absolue).
+## v3.6 ->	. Ajout d'une balise '<BLINK>' pour mettre en évidence les gènes de fusion.
+##		. Correction de typo dans l'URL vers la CTD.
+##		. Utilisation des tables cpgIslandExt (source UCSC) de /proj/cgh plutôt que celles
+##			  de /db/GoldenPath renommées...
+##		. Correction de la table cpg.html corrompue du fait d'un changement de structure dans
+##			  l'ancien fichier source.
+##		. IDEE : Réflexion sur la possibilité d'inclure un surlignement de mots-clés dans les fonctions
+##			  de gènes ou dans les pathways. Le surlignement serait facile à introduire :
+##			  <SPAN STYLE="background:#FFFFFF"> ... </SPAN>, maisle parsing et la gestion des chaînes de
+##			  caractère en Perl serait plus compliqué.
+## v3.5 ->	. Modification des paths des fichiers de données vers /proj/cgh. L'accès à ces données
+##			  devient donc public et sort de mon home ! (ne pas oublier de chmoder...)
+##		. Le build de génome par défaut devient hg19.
+## v3.4 ->	. Modification de la source des localisations, symboles et descriptions de gènes : les tables
+##			  knownGene et kgXref de téléchargées directement de l'UCSC (dans la bonne version de génome)
+##			  sont désormais utilisées en remplacement du fichier lkfunc.
+## v3.3c ->	. Modification du lien genecards (le mirroir Heidelberg n'existe plus). Retour au site primaire.
+## v3.3b ->	. Switch vers hg19 par défaut. hg18 reste disponible.
+## v3.3 ->	. Ajout des liens vers les fichiers d'annotation en version hg19.
+##			  La version par defaut reste pour l'instant hg18.
+##
+## v3.2 ->	. Ajout d'un nouveau code couleur pour les genes : ceux du Cancer Census (NCBI) en bleu ciel ("aqua").
+##			  Ceux-ci n'etant pas classes en tsup/onc, une seule couleur est appliquee, et seulement si le gene
+##			  n'est pas deja classe en tsup/onc dans l'Atlas. Ajout sur proposition du Pr. Pierre FOURET.
+##
+## v3.1 ->	. Nouvelle branche du script estampillee genrdescM, qui prend en charge les sorties de clicosel3
+##			  (nom provisoire), lui meme modifie depuis clicosel pour prendre en charge les sorties de
+##			  clicoMULTI, version modifiee de clicoTT.R pour prendre en charge automatiquement les tests T
+##			  pour 2 classes, et ANOVA pour multiclasses.
+##		. Prise en charge du nouveau format : plusieurs colonnes enlevees (Chr, Start, End, Probes) inutiles
+##			  ou redondantes (avec Loc) en sortie.
+##		. Simplification de la structure des fichiers de sortie : seuls 4 fichiers sont desormais generes
+##			  (1- index avec table principale; 2- table genes; 3- table CNV; 4- table miR). Ca permet un leger
+##			  gain d'espace disque, et surtout un nombre de fichiers genere beaucoup plus faible (auparavant,
+##			  souvent plusieurs milliers); bien plus facile a copier sur cle USB desormais ;)
+##		. Reflexion pour incorporation des data CpG Island (donnees dans :
+##			  /ws/annot/GoldenPath/current/database/cpgIslandExt.txt)
+##		. Le mode -solo est desormais totalement compatible ! La colonne Pval a ete retiree car desormais
+##			  inutile. IMPORTANT : dans le cas d'un profil avec de nombreuses aberrations, les pages HTML
+##			  des genes et des CNV peuvent etre assez longues a parser par le butineur, et engendrer une assez
+##			  grosse consommation de RAM (en particulier sur firefox avec ses quelques leaks...), donc
+##			  il est deconseille d'ouvrir les fichiers generes sur une petite machine !
+##
+## v2.3 ->	. Remplacement du 1er lien pour la table des miRNA, vers la base du Sanger (plus complete pour
+##			  les noms de miR immatures). Lien-type :
+##			  "http://microrna.sanger.ac.uk/cgi-bin/sequences/mirna_entry.pl?id="
+##
+## v2.2 ->	. Correction d'un des liens vers l'UCSC qui ne gerait pas le build.
+##
+## v1.8b ->	. Modification des liens dynamiques vers DGV dont la structure de l'URL a change (dec 2008).
+##
+## v1.8 ->	. Correction de bug : erreurs et plantages generes par des 'chrN_random' conserves dans
+##			  genarray, desormais filtres.
+##		. Correction de bug : du fait d'une interversion  de variable pour boucle ($c et $r),
+##			  tout gene partiel a gauche d'une region analysee n'apparaissait pas !!
+##		. Amelioration sans grande consequence : quelques >= et <= remplaces par leurs valeurs
+##			  strictes > et <.
+##		. Correction du mauvais type de quote pour l'affichage de 'Reading file'.
+##		. Modifications cosmetiques : modification de l'affichage du nb d'onco, tsup sur la
+##			  page principale : desormais en bold et taille de police inferieure, avec ajout
+##			  du nb de genes dans l'Atlas (onco et tsup non compris), avec le noir pour couleur.
+##
+## v1.7b ->	. Correction de bug : les valeurs negatives de log2ratio ne s'affichaient pas dans le
+##			  fichier pathrank2 (oubli du nom du outdev).
+##
+## v1.7 ->	. Ajout d'une liste des genes amplifies/deletes pour le mode SOLO.
+##		. Inversion de couleur (vert <-> rouge) oubliee pour la table CHEM et les deux tables
+##			  PATHRANK.
+##		. Retrait des genes systematiquement en bold pour les tables CHEM, PATHRANK et
+##			  PATHRANK2. Sont desormais en bold les amplifies (>=1.5) ou deletes (<= -2).
+##		. Ajustement des tailles de colonnes pour alignement optimal sur la page de garde.
+##			  Desormais, la somme des colonnes 'constantes' est 53%, et l'ajout des colonnes
+##			  'variables' doit faire arriver a 100% sous peine de mauvais alignement !
+##
+## v1.6b -> 	. Correction de mise en forme du lien vers la base DGV pour les genes des chr X et Y
+##			  (lien auparavant non fonctionnel car "23" et "24" utilises au lieu des "X" et "Y")
+##		. Inversion de couleur (vert <-> rouge) pour les log2ratios >= 1.5 (<= -1.5) pour respecter
+##			  l'inversion de couleur generale du statut gain / perte.
+##
+## v1.6 ->	. Ajout d'une nouvelle feuille HTML listant les genes-cibles aberrants d'une liste de
+##			  molecules, definie par V. Lazar.
+##
+## v1.5b ->	. Inversion du code couleur gain -> rouge, perte -> vert pour accord avec PhD.
+##
+## v1.5 ->	. Ajout des infos de pathway CTD (et adaptation des largeurs de colonnes en fonction).
+##		. Ajour d'un lien vers GeneCards sur la description du gene.
+##		. Ajout du nombre d'ONCO, TSUP, MULTI dans la table principale, en couleurs. Elargissement
+##			  de la colonne 'Genes' (6%) au detriment de 'CNV' (4%) qui de toute facon etait trop grande
+##			  pour le peu d'info a afficher.
+##		. Modification de l'affichage de 'Width' dans la table des genes, pour gain de place
+##			  (valeur arrondie et affichage de l'unite : b, Kb, ou Mb).
+##		. Ajout d'une coloration du BODY pour la page gene, uniquement pour le mode 'solo',
+##			  en fonction du statu G ou L de la region consideree.
+##		. Ajout d'annotation cosmetique du log2ratio pour le mode 'solo' : en gras si abs >= 0.75
+##			  + rouge si <= -2, ou vert si >= 1.5.
+##
+## v1.4 ->	. Ajout du mode 'solo' pour gerer les fichiers issus de 'abr0grdl'.
+##
+## v1.3 ->	. Ajout du mode 'mcr' pour gerer les fichiers issus du script 'minicr' ou 'microcr'.
+##
+
+
+# my $time = time;
+
+## CHROM to CHR converter
+my %chrom2chr = (	'hs' =>	{ 'chr1' => 1, 'chr2' => 2, 'chr3' => 3, 'chr4' => 4, 'chr5' => 5, 'chr6' => 6, 'chr7' => 7, 'chr8' => 8, 'chr9' => 9, 'chr10' => 10, 'chr11' => 11, 'chr12' => 12, 'chr13' => 13, 'chr14' => 14, 'chr15' => 15, 'chr16' => 16, 'chr17' => 17, 'chr18' => 18, 'chr19' => 19, 'chr20' => 20, 'chr21' => 21, 'chr22' => 22, 'chrX' => 23, 'chrY' => 24 },
+			'mm' =>	{ 'chr1' => 1, 'chr2' => 2, 'chr3' => 3, 'chr4' => 4, 'chr5' => 5, 'chr6' => 6, 'chr7' => 7, 'chr8' => 8, 'chr9' => 9, 'chr10' => 10, 'chr11' => 11, 'chr12' => 12, 'chr13' => 13, 'chr14' => 14, 'chr15' => 15, 'chr16' => 16, 'chr17' => 17, 'chr18' => 18, 'chr19' => 19, 'chrX' => 20, 'chrY' => 21 },
+			'rn' =>	{ 'chr1' => 1, 'chr2' => 2, 'chr3' => 3, 'chr4' => 4, 'chr5' => 5, 'chr6' => 6, 'chr7' => 7, 'chr8' => 8, 'chr9' => 9, 'chr10' => 10, 'chr11' => 11, 'chr12' => 12, 'chr13' => 13, 'chr14' => 14, 'chr15' => 15, 'chr16' => 16, 'chr17' => 17, 'chr18' => 18, 'chr19' => 19, 'chr20' => 20, 'chrX' => 21, 'chrY' => 22 }	);
+
+## CHR to CHROM converter
+my %chr2chrom = ();
+foreach my $s (keys(%chrom2chr)) {
+	foreach my $c (keys(%{$chrom2chr{$s}})) {
+		$chr2chrom{$s}{$chrom2chr{$s}{$c}} = $c;
+	}
+}
+
+## SPECIES TERM CONVERTER (needed to transform 'hs' and '19' to 'hg19', by example)
+my %spconv = ('hs' => 'hg', 'mm' => 'mm', 'rn' => 'rn');
+my %splong = ('hs' => 'homo_sapiens', 'mm' => 'mus_musculus', 'rn' => 'rattus_norvegicus');
+
+## CANCER-RELATED KEYWORDS
+my @cancerkeywords = ('cancer', 'metasta', 'onco', 'carcinoma', 'melanoma', 'lymphoma', 'leukemia', 'sarcoma', 'neuroblastoma', 'glioma', 'jak-stat', 'wnt', 'erbb', 'EGF', 'NGF', 'PDGF', 'FGF', 'MAPK', 'PPAR', 'chromosome maintenance', 'histone', 'repair', 'polymerase', 'telomere', 'splic', 'replication', 'recombination', 'cyclin', 'cell cycle', 'apoptosis', 'p53', 'tnf', 'tumor', 'death', 'proteasome', 'autophagy', 'drug metabolism', 'ABC transporter', 'p450', 'homeobox', 's100', 'mtor', 'pi3k');
+
+## HTML COLORS CONF
+my %colcol = (	'main' =>	'orange',
+		'gene' =>	'lightblue',
+		'mir' =>	'#CC0099',
+		'cnv' =>	'yellow',
+		'cpg' =>	'green',
+		'back' =>	'#EBEBEB'	);
+
+
+my %statuscol = (	'G' =>	'#0088FF',
+			'L' =>	'#FF3C00',
+			'N' =>	'#C4C4C4',
+			'A' =>	'#FFF000'	);
+
+my %gtypecol = (	'onco' =>	'#FF5555',
+			'tsup' =>	'#55FF55',
+			'mix' =>	'#C4C4C4',
+			'census' =>	'#0088FF'	);
+
+my %gsubcol = (		'onco' =>	'#FF5555',
+			'tsup' =>	'#55FF55',
+			'mix' =>	'#C4C4C4',
+			'census' =>	'#0088FF'	);
+
+my %gsubtitle = (	'onco' =>	'Oncogene (COSMIC Gene Census)',
+			'tsup' =>	'Tumor-suppressor gene (COSMIC Gene Census)',
+			'mix' =>	'Context-dependent cancer gene (COSMIC Gene Census)',
+			'census' =>	'Unprecised cancer gene (COSMIC Gene Census)'	);
+
+
+## USED HTTP LINKS. See real links in %links
+## UCSC (kG, Xref, cytobands)		http://genome.ucsc.edu
+## CTD (chemotox)			http://ctd.mdibl.org/detail.go?type=gene&db=GENE&acc=581 (les ID peuvent être obtenus depuis le fichier CTD de Philippe)
+## GENECARDS (gene desc)		http://www.genecards.org/cgi-bin/carddisp.pl?gene=CCND1
+## DGV (CNVs)				http://projects.tcag.ca/cgi-bin/variation/xview?source=hg19&view=variation&id=Variation_105625
+## MIRBASE				http://www.mirbase.org
+## MICRORNA.ORG
+
+## USED ONLINE DATA/INFORMATION SOURCES (+url) :
+## CTD (chemotox)			http://ctd.mdibl.org/detail.go?type=gene&db=GENE&acc=581 (les ID peuvent être obtenus depuis le fichier CTD de Philippe)
+## CGAP (cancer genes for hs & mm)	http://cgap.nci.nih.gov/Info/
+## UCSC (kG, Xref, cytobands)		http://genome.ucsc.edu
+## DGV (CNVs)				http://projects.tcag.ca/cgi-bin/variation/xview?source=hg19&view=variation&id=Variation_105625
+
+## USED LOCAL DATA/INFORMATION SOURCES (+path) :
+## TICDB (translocs)			/proj/annot/TICdb_may2008/FusionGenes_Uniq_TICdb_may2008.txt
+## CHIMERDB 2.0 human			/db/chimerdb/v2.0/PO_down_concat.txt
+## CHIMERDB 1.0 mouse			/db/chimerdb/v1.0/mm5_chimerdbSymbol.txt
+## CHIMERDB 1.0 rat			/db/chimerdb/v1.0/rn3_chimerdbSymbol.txt
+## CENSUS				/proj/cgh/COSMIC/Census_all.tsv
+
+
+## LOAD
+my $sp = 'hs';
+my $gb = 19;
+my $mode = 'norm';
+# my $fsort = 'none';
+my $gcol= 1;
+my $lcol = -1;
+my $bold = 0.65;
+# my $proj = '/mnt/proj/';
+# my $db = '/mnt/db/';
+my $ldb = '/mnt/data_cigogne/bioinfo/';
+my $dump = 'N';
+
+if (scalar(@ARGV) == 0) {
+	print '
+GRD v'.$version.'
+ for Genomic Regions Descriptor.
+
+DESCRIPTION: This script takes a list of genomic regions as input,
+ and returns an HTML-based structure with genomic annotations of
+ these given regions, including genes and gene types, miRNAs, CNVs
+ and CpGislands, as well as links to usefull calssical academic DBs.
+
+USAGE:
+ grd --sp [hs|mm|rn] --gb [18|19|9|10|4] -m [cc_categ|cc_conti|stac|gaia|g2|solo|p2c|s2c|norm] -g [float+] -l [float-] -bold [float+] --ldb [path] [file(s)]
+
+	--sp	Species. ['.$sp.']
+	--gb	Genome build. ['.$gb.']
+	-m	Use this option if the input file is an output result
+		from other scripts, containing more annotations than
+		the genomic locations. It will make use of other available
+		columns. You can use :
+		. \'cc_categ\' to annotate results from the [clicoM.R] script
+		   using CATEGORICAL data.
+		. \'cc_conti\' to annotate results from the [clicoM.R] script
+		   using CONTINUOUS data.
+		. \'stac\' to annotate results from the [minicr] script after
+		   having used the STAC tool.
+		. \'gaia\' to annotate results from the [mcr_gaia.R] script
+		   which runs the gaia MCR search tool.
+		. \'g2\'to annotate results from the [gistic2grd] script
+		   which reformats GISTIC2 MCR search tool results.
+		. \'solo\' to annotate results from the [lst2grd] script.
+		   Note that this should not be required as lst2grd
+		   automatically fires grd.
+		. \'s2c\' to annotate results from the seg2comp.R script.
+		. \'p2c\' to annotate results from the prob2comp.R script.
+		. \'norm\' is the default, one-column mode. It is equal
+		   to no calling of the "-m" option.
+	-g	Positive log2(ratio) cut-off from which a coloration will
+		be applied on gains. ['.$gcol.']
+	-l	Negative log2(ratio) cut-off from which a coloration will
+		be applied on losses. ['.$lcol.']
+	-b	Positive log2(ratio) cut-off from which a bold effect will
+		be applied on gains and losses. ['.$bold.']
+	--ldb	Path to a the local databases mirror ['.$ldb.']
+	file(s)	File or files, by default containing genomic regions
+		coordinates as a single column with the regular
+		chrN:start-end structure. The script can accept
+		more complicated structures, depending on the
+		"-m" parameter, to handle outputs from different
+		analysis types.
+
+NOTE1 : This version is compatible with the hg18, hg19, hg38, mm9, mm10 and rn4 genome builds.
+
+NOTE2 : To process multiple files in one run, you can use the
+ \'\#\' and \'\?\' special characters in the filename. To be
+ interpreted as a special character by this perl script, the backslash
+ is required !
+
+';
+exit;
+}
+
+## HANDLING ARGZ
+foreach (@ARGV) {
+	chomp;
+}
+
+my $infilez = pop @ARGV;
+
+foreach my $i (0..$#ARGV) {
+	if ($ARGV[$i] =~ /^--sp/)	{ $sp = $ARGV[$i+1];	}
+	elsif ($ARGV[$i] =~ /^--gb$/)	{ $gb = $ARGV[$i+1];	}
+	elsif ($ARGV[$i] =~ /^-m$/)	{ $mode = $ARGV[$i+1];	}
+	elsif ($ARGV[$i] =~ /^-g$/)	{ $gcol = $ARGV[$i+1];	}
+	elsif ($ARGV[$i] =~ /^-l$/)	{ $lcol = $ARGV[$i+1];	}
+	elsif ($ARGV[$i] =~ /^-b$/)	{ $bold = $ARGV[$i+1];	}
+	elsif ($ARGV[$i] =~ /^--ldb$/)	{ $ldb = $ARGV[$i+1];	}
+	elsif ($ARGV[$i] =~ /^--dump$/)	{ $dump = 'Y';	}
+}
+
+
+## SOURCES
+
+## UCSC Cytobands datafiles
+my %cytopath = (
+	'hg18' =>	$ldb.'/GoldenPath/hg18/cytoBandIdeo.hg18',
+	'hg19' =>	$ldb.'/GoldenPath/hg19/cytoBandIdeo.hg19',
+	'hg38' =>	$ldb.'/GoldenPath/hg38/cytoBandIdeo.hg38',
+	'mm9' =>	$ldb.'/GoldenPath/mm9/cytoBandIdeo.mm9',
+	'mm10' =>	$ldb.'/GoldenPath/mm10/cytoBandIdeo.mm10',
+	'rn4' =>	$ldb.'/GoldenPath/rn4/cytoBandIdeo.rn4'
+	);
+
+## UCSC knownGene datafiles
+my %kgpath = (
+	'hg18' =>	$ldb.'/GoldenPath/hg18/knownGene.hg18',
+	'hg19' =>	$ldb.'/GoldenPath/hg19/knownGene.hg19',
+	'hg38' =>	$ldb.'/GoldenPath/hg38/knownGene.hg38',
+	'mm9' =>	$ldb.'/GoldenPath/cgh/mm9/knownGene.mm9',
+	'mm10' =>	$ldb.'/GoldenPath/cgh/mm10/knownGene.mm10',
+	'rn4' =>	$ldb.'/GoldenPath/cgh/rn4/rgdGene2.rn4'
+	);
+
+## UCSC refGene datafiles
+my %rgpath = (
+	'hg18' =>	$ldb.'/GoldenPath/hg18/refGene.hg18',
+	'hg19' =>	$ldb.'/GoldenPath/hg19/refGene.hg19',
+	'hg38' =>	$ldb.'/GoldenPath/hg38/refGene.hg38',
+	'mm9' =>	$ldb.'/GoldenPath/mm9/refGene.mm9',
+	'mm10' =>	$ldb.'/GoldenPath/mm10/refGene.mm10',
+	'rn4' =>	$ldb.'/GoldenPath/rn4/refGene.rn4'
+	);
+
+## UCSC Xrefs datafiles
+my %kgXpath = (
+	'hg18' =>	$ldb.'/GoldenPath/hg18/kgXref.hg18',
+	'hg19' =>	$ldb.'/GoldenPath/hg19/kgXref.hg19',
+	'hg38' =>	$ldb.'/GoldenPath/hg38/kgXref.hg38',
+	'mm9' =>	$ldb.'/GoldenPath/mm9/kgXref.mm9',
+	'mm10' =>	$ldb.'/GoldenPath/mm10/kgXref.mm10',
+	'rn4' =>	$ldb.'/GoldenPath/rn4/rgdGene2Xref.rn4'
+	);
+
+## OFFICIAL SYMBOLS
+my %offsymbpath = (
+	'hs' =>	$ldb.'/HGNC/HGNC_Hugo.txt',
+	'mm' =>	$ldb.'/MGI/MGI_MRK_List2.rpt',
+	'rn' =>	$ldb.'/RGD/RGD_GENES_RAT.txt'
+	);
+
+## DGV polymorphisms *HUMAN ONLY*
+my %dgvpath = (
+	'hg18' =>	$ldb.'/GoldenPath/hg18/dgvMerged.hg18',
+	'hg19' =>	$ldb.'/GoldenPath/hg19/dgvMerged.hg19',
+	'hg38' =>	$ldb.'/GoldenPath/hg38/dgvMerged.hg38'
+	);
+
+## Microsatellites for non-human species
+my %MSfilehash = (
+	'mm9' =>	$ldb.'/GoldenPath/mm9/microsat.mm9',
+	'mm10' =>	$ldb.'/GoldenPath/mm10/microsat.mm10',
+	'rn4' =>	$ldb.'/GoldenPath/rn4/microsat.rn4'
+	);
+
+## mirDB datafiles from miRBase
+my %mirpath = (
+	'hg18' =>	$ldb.'/GoldenPath/hg18/hsa.gff_mirna_miRBasev13.hg18',
+	'hg19' =>	$ldb.'/GoldenPath/hg19/hsa.gff3_mirna_miRBasev20.hg19',
+	'hg38' =>	$ldb.'/GoldenPath/hg38/hsa.gff3_mirna_miRBasev21.hg38',
+	'mm9' =>	$ldb.'/GoldenPath/mm9/mmu.gff3_mirna_miRBasev18.mm9',
+	'mm10' =>	$ldb.'/GoldenPath/mm10/mmu.gff3_mirna_miRBasev20.mm10',
+	'rn4' =>	$ldb.'/GoldenPath/rn4/rno.gff3_mirna_miRBasev20.rn4'
+	);
+
+## UCSC CPGislands datafiles
+my %cpgpath = (
+	'hg18' =>	$ldb.'/GoldenPath/hg18/cpgIslandExt.hg18',
+	'hg19' =>	$ldb.'/GoldenPath/hg19/cpgIslandExt.hg19',
+	'hg38' =>	$ldb.'/GoldenPath/hg38/cpgIslandExt.hg38',
+	'mm9' =>	$ldb.'/GoldenPath/mm9/cpgIslandExt.mm9',
+	'mm10' =>	$ldb.'/GoldenPath/mm10/cpgIslandExt.mm10',
+	'rn4' =>	$ldb.'/GoldenPath/rn4/cpgIslandExt.rn4'
+	);
+
+## KEGG : ToKeggEntrez from UCSC
+my %keggtkepath = (
+	'hg18' =>	$ldb.'/GoldenPath/hg18/knownToKeggEntrez.hg18',
+	'hg19' =>	$ldb.'/GoldenPath/hg19/knownToKeggEntrez.hg19',
+	'hg38' =>	$ldb.'/GoldenPath/hg38/knownToKeggEntrez.hg38',
+	'mm9' =>	$ldb.'/GoldenPath/mm9/knownToKeggEntrez.mm9',
+	'mm10' =>	$ldb.'/GoldenPath/mm10/knownToKeggEntrez.mm10',
+	'rn4' =>	$ldb.'/GoldenPath/rn4/rgdGene2KeggEntrez.rn4'
+	);
+
+## KEGG : knownToKeggEntrez from UCSC
+my %keggmdpath = (
+	'hg18' =>	$ldb.'/GoldenPath/hg18/keggMapDesc.hg18',
+	'hg19' =>	$ldb.'/GoldenPath/hg19/keggMapDesc.hg19',
+	'hg38' =>	$ldb.'/GoldenPath/hg38/keggMapDesc.hg38',
+	'mm9' =>	$ldb.'/GoldenPath/mm9/keggMapDesc.mm9',
+	'mm10' =>	$ldb.'/GoldenPath/mm10/keggMapDesc.mm10',
+	'rn4' =>	$ldb.'/GoldenPath/rn4/keggMapDesc.rn4'
+	);
+
+## CTD pathways annotations from KEGG + Reactome (hs only)
+my $ctdpathfile = $ldb.'/CTD/CTD_genes_pathways.tsv';
+
+## CTD chemo tox datafile;
+my $ctdfile = $ldb.'/CTD/CTD_chem_gene_ixns.tsv';
+
+## TICdb annotations for fusion genes *HUMAN ONLY*
+my $ticfile = $ldb.'/TICdb/TICdbTable_v3.2.txt';
+
+## Chimerdb 2.0 annotations for fusion genes *HUMAN ONLY* (v1.0 for mm & rn)
+my %chimdbfile = (
+	'hs' =>		$ldb.'/chimerdb/v2.0/PO_down_concat.txt',
+	'mm' =>		$ldb.'/chimerdb/v1.0/mm5_chimerdbSymbol.txt',
+	'rn' =>		$ldb.'/chimerdb/v1.0/rn3_chimerdbSymbol.txt'
+	);
+
+
+## Cancer genes files (from COSMIC CancerCensus, ...)
+my $cancgenfile = $ldb.'/COSMIC_cancer_census/Census_all.tsv';
+
+my %gvcheck = ( 'hg18' => 18, 'hg19' => 19, 'mm9' => 9, 'mm10' => 10, 'rn4' => 4);
+my %modechk = ( 'norm' => 1, 'cc_categ' => 2, 'cc_conti' => 9, 'stac' => 3, 'solo' => 4, 'p2c' => 5, 's2c' => 6, 'gaia' => 7, 'g2' => 8);
+
+
+
+
+## Check on mode
+$mode =  lc($mode);
+if (!exists $modechk{$mode}) {
+	print "\nWARNING : Mode not understood ! Switching to the normal mode !\n";
+	$mode = 'norm';
+}
+
+## Check on species and genome build combo
+my $gv = $spconv{lc($sp)}.$gb;
+if (!exists $gvcheck{$gv}) {
+	die "\nERROR : Unknown species or genome build !\n";
+}
+else {
+	print "\nWorking on ".$gv."\n";
+}
+
+## Getting files if multiple are given
+my @filez = `ls $infilez`;
+print "\n".@filez." file(s) found.\n";
+if (scalar(@filez) == 0) {
+	exit;
+}
+
+## Initiating empty variables for the different annotations types. Also used as a check if their source files are empty
+my $ctdctrl = '-';
+my $ctdpctrl = '-';
+my $fusctrl = '-';
+my $cnvctrl = '-';
+my $mirctrl = '-';
+my $cpgctrl = '-';
+
+my @genarray=();
+my @mirarray=();
+my @cpgarray=();
+my @cnvarray=();
+my %pathways = ();
+my %fusgenhash=();
+
+my %coltype = ( 'N' => '#C0C0C0', 'L' => '#EE9090', 'G' => '#90EEEE', 'A' => '#EEEE90');
+my %bgcoltype = ( 'L' => '#EE9090', 'G' => '#90EEEE' );
+
+## LOADING CHR / CYTOBANDS
+print "\nImporting UCSC CytoBands data ...\n";
+my @cytob=();
+# print $cytopath{$gv}."\n";
+open CYTO, $cytopath{$gv} or die $!;
+while (my $l=<CYTO>) {
+	$l =~ s/\n//;
+	$l =~ s/\r//;
+	if ($l !~ /^\#/) {
+		my @temp = split /\t/, $l;
+		my $chr = $chrom2chr{$sp}{$temp[0]};
+		push @{$cytob[$chr-1]}, [ @temp ];
+	}
+}
+close CYTO;
+## Sorting on start
+foreach my $c (0..$#cytob) {
+	@{$cytob[$c]} = sort { ${$a}[1] <=> ${$b}[1] } @{$cytob[$c]};
+}
+
+## Importing UCSC refGene
+print "Importing refGene data ...\n";
+my %refgene = ();
+my %refgeneS = ();
+open RGIN, $rgpath{$gv} or die $!;
+while (my $l=<RGIN>) {
+	$l =~ s/\n//;
+	$l =~ s/\r//;
+	if ($l !~ /^\#/) {
+		my @temp = split /\t/, $l;
+		if ($temp[2] =~ /^chr([0-9]+|X|Y)$/) {
+			$refgene{$temp[1]} = [ $chrom2chr{$sp}{$temp[2]}, @temp[4,5,12] ];		## chr, TXstart, TXend, Symbol
+			push @{$refgeneS{$temp[12]}}, [ ($chrom2chr{$sp}{$temp[2]}, @temp[4,5]) ];
+		}
+	}
+}
+close RGIN;
+print "\tloaded ".keys(%refgene)." refGene transcripts.\n";
+print "\tcorresponding to ".keys(%refgeneS)." symbols.\n";
+
+## Importing UCSC knownGene
+print "Importing knownGene data ...\n";
+my %ucsc = ();
+open KGIN, $kgpath{$gv} or die $!;
+while (my $l=<KGIN>) {
+	$l =~ s/\n//;
+	$l =~ s/\r//;
+	if ($l !~ /^\#/) {
+		my @temp = split /\t/, $l;
+		if ($temp[1] =~ /^chr([0-9]+|X|Y)$/) {
+			$ucsc{$temp[0]} = [ $chrom2chr{$sp}{$temp[1]}, @temp[3,4] ];		## chr, TXstart, TXend
+		}
+	}
+}
+close KGIN;
+print "\tloaded ".keys(%ucsc)." UCSC transcripts.\n";
+
+## IMPORTING OFFICIAL SYMBOLS
+## For homo sapiens
+my %offsymb=();
+print "Importing official symbols ";
+## Importing Hugo symbols for hs
+if ($sp eq 'hs') {
+	print "from HGNC Hugo for homo sapiens...\n";
+	open HGNC, $offsymbpath{$sp} or die $!;
+	while (my $l=<HGNC>)  {
+		$l =~ s/\n//;
+		$l =~ s/\r//;
+		if ($l !~ /^hgnc_id/) {
+			my @temp = split /\t/, $l;
+			if ($temp[5] eq 'Approved') {
+				$offsymb{$temp[1]} = $temp[2];
+			}
+		}
+	}
+	close HGNC;
+}
+## For mus musculus
+elsif ($sp eq 'mm') {
+	print "from MGI for mus musculus...\n";
+	open MGI, $offsymbpath{$sp} or die $!;
+	while (my $l=<MGI>)  {
+		$l =~ s/\n//;
+		$l =~ s/\r//;
+		if ($l !~ /^MGI Accession ID/) {
+			my @temp = split /\t/, $l;
+			if ($temp[9] =~ /^gene$/i) {
+				$offsymb{$temp[6]} = $temp[8];	## $hgnc{SYMBOL} = DESCRIPTION
+			}
+		}
+	}
+	close MGI;
+}
+## For rattus norvegicus
+elsif ($sp eq 'rn') {
+	print "from RGD for rattus norvegicus...\n";
+	open RGD, $offsymbpath{$sp} or die $!;
+	while (my $l=<RGD>)  {
+		$l =~ s/\n//;
+		$l =~ s/\r//;
+		if ($l !~ /^\#/) {
+			my @temp = split /\t/, $l;
+			$offsymb{$temp[1]} = $temp[2];	## $hgnc{SYMBOL} = DESCRIPTION
+		}
+	}
+	close MGI;
+}
+print "\tloaded ".keys(%offsymb)." approved symbols.\n";
+
+## Cleaning refgen for non-official symbols
+print "Removing unofficial symbols from refGene...\n";
+foreach my $sym (keys %refgeneS) {
+	unless (exists $offsymb{$sym}) {
+		delete $refgeneS{$sym};
+	}
+}
+print "\tkept ".keys(%refgeneS)." approved symbols.\n";
+
+## Clusterizing refGene transcripts to keep a single coordinates pair for each symbol
+print "Clusterizing refGene transcripts ...\n";
+my %genhash=();
+foreach my $sym (keys %refgeneS) {
+	if (scalar @{$refgeneS{$sym}} == 1) {
+		$genhash{$sym} = [ @{$refgeneS{$sym}} ];
+	}
+	else {
+		my @tempo=();
+		my @curlocz = @{$refgeneS{$sym}};
+		## Sorting @curlocz by chr (inc) then start (inc) then end (dec)
+		@curlocz = sort { ${$a}[0] <=> ${$b}[0] || ${$a}[1] <=> ${$b}[1] || ${$b}[2] <=> ${$a}[2] } @curlocz;
+		push @tempo, [ @{$curlocz[0]}];
+		foreach my $x (0..$#curlocz) {
+			my $inflag=0;
+			foreach my $y (0..$#tempo) {
+				if ( (${$curlocz[$x]}[0] == ${$tempo[$y]}[0]) and  (${$curlocz[$x]}[1] <= ${$tempo[$y]}[2]) and (${$curlocz[$x]}[2] >= ${$tempo[$y]}[1]) ) {
+					$inflag++;
+					if (${$curlocz[$x]}[1] <= ${$tempo[$y]}[1]) {
+						${$tempo[$y]}[1] = ${$curlocz[$x]}[1];
+					}
+					if (${$curlocz[$x]}[2] >= ${$tempo[$y]}[2]) {
+						${$tempo[$y]}[2] = ${$curlocz[$x]}[2] ;
+					}
+				}
+			}
+			if ($inflag == 0) {
+				push @tempo, [ @{$curlocz[$x]} ];
+			}
+		}
+		$genhash{$sym} = [ @tempo ];
+	}
+}
+my $glocc = 0;
+foreach my $sym (keys %genhash) { $glocc += scalar @{$genhash{$sym}}; }
+print "\tFound ".$glocc." localizations for the ".keys(%genhash)." symbols.\n";
+
+## dump genes locs
+if ($dump == 'Y') {
+	open ZGOUT, ">genesloc_".$gv.".txt" or die $!;
+	print ZGOUT join("\t", "Symbol", "Chr", "Start", "End")."\n";
+	foreach my $sym (keys %genhash) {
+		foreach my $l (0..$#{$genhash{$sym}}) {
+			print ZGOUT join("\t", $sym, @{${$genhash{$sym}}[$l]})."\n";
+		}
+	}
+	close ZGOUT or die $!;
+}
+
+
+## Importing UCSC kgXref to cross official symbols and UCSC localizations
+print "Importing kgXref data ...\n";
+my %ucscX = ();
+my %symbtrans = ();	## Hash with symbols as keys, UCSC transcripts IDs as values. Needed to cross with KEGG pathways.
+open KGXIN, $kgXpath{$gv} or die $!;
+while (my $l=<KGXIN>) {
+	$l =~ s/\n//;
+	$l =~ s/\r//;
+	if ($l !~ /^\#/) {
+	my @temp = split /\t/, $l;
+		if ($sp =~ /^(hs|mm)$/) {
+			if ( (exists $ucsc{$temp[0]}) and (exists($offsymb{$temp[4]})) ) {
+				push @{$ucscX{$temp[4]}}, [ (@{$ucsc{$temp[0]}}, $offsymb{$temp[4]}) ];		## chr, TXstart, TXend
+				push @{$symbtrans{$temp[4]}}, $temp[0];		## UCSC_transcript_ID
+			}
+		}
+		elsif ($sp =~ /^rn$/) {
+			if ( ($temp[1] eq 'ID') and ($temp[2] !~ /^RGD/) ) {
+				if ( (exists $ucsc{$temp[0]}) and (exists($offsymb{$temp[2]})) ) {
+					push @{$ucscX{$temp[2]}}, [ (@{$ucsc{$temp[0]}}, $offsymb{$temp[2]}) ];		## chr, TXstart, TXend
+					push @{$symbtrans{$temp[2]}}, $temp[0];		## UCSC_transcript_ID
+				}
+			}
+		}
+	}
+}
+close KGIN;
+print "\tidentified ".keys(%ucscX)." transcripts with approved symbol.\n";
+
+## As UCSC minimal data are transcripts, we must clusterize them to get the genomic coordinates
+print "Clusterizing transcripts ...\n";
+my %genhashX=();
+foreach my $sym (keys %ucscX) {
+	if (scalar @{$ucscX{$sym}} == 1) {
+		$genhashX{$sym} = [ @{$ucscX{$sym}} ];
+	}
+	else {
+		my @tempo=();
+		my @curlocz = @{$ucscX{$sym}};
+		## Tri de @curlocz par chr croissants, puis start croissants, puis end décroissants;
+		@curlocz = sort { ${$a}[0] <=> ${$b}[0] || ${$a}[1] <=> ${$b}[1] || ${$b}[2] <=> ${$a}[2] } @curlocz;
+		push @tempo, [ @{$curlocz[0]}];
+		foreach my $x (0..$#curlocz) {
+			my $inflag=0;
+			foreach my $y (0..$#tempo) {
+				if ( (${$curlocz[$x]}[0] == ${$tempo[$y]}[0]) and (${$curlocz[$x]}[1] <= ${$tempo[$y]}[2]) and (${$curlocz[$x]}[2] >= ${$tempo[$y]}[1]) ) {
+					$inflag++;
+					if (${$curlocz[$x]}[1] <= ${$tempo[$y]}[1]) {
+						${$tempo[$y]}[1] = ${$curlocz[$x]}[1];
+					}
+					if (${$curlocz[$x]}[2] >= ${$tempo[$y]}[2]) {
+						${$tempo[$y]}[2] = ${$curlocz[$x]}[2] ;
+					}
+				}
+			}
+			if ($inflag == 0) {
+				push @tempo, [ @{$curlocz[$x]} ];
+			}
+		}
+		$genhashX{$sym} = [ @tempo ];
+	}
+}
+
+## Crossing genes and localizations
+foreach my $sym (sort(keys(%genhash))) {
+	foreach my $x (0..$#{$genhash{$sym}}) {
+		push @{$genarray[${${$genhash{$sym}}[$x]}[0] - 1]}, [ ($sym, @{${$genhash{$sym}}[$x]}) ];
+	}
+}
+
+## Creating another hash with a concatenation of symbol.chr.start.end as key
+my %genlochash = ();
+foreach my $k (0..$#genarray) {
+	foreach my $c (0..$#{$genarray[$k]}) {
+		$genlochash{join('', @{${$genarray[$k]}[$c]}[0..3])} = [ @{${$genarray[$k]}[$c]} ];
+	}
+}
+print "\tidentified ".keys(%genlochash)." approved symbol localizations.\n";
+
+## Sorting genarray chr blocks according to their chomosomic start
+print "\tsorting data ...\n";
+foreach my $g (0..$#genarray) {
+	@{$genarray[$g]} = sort { ${$a}[2] <=> ${$b}[2] } @{$genarray[$g]};
+}
+
+## LOADING CANCER GENES LISTS *HS ONLY*
+my %canchash=();
+my %oncohash=();
+my %tsuphash=();
+my %censushash=();
+my %mixhash=();
+if ($sp eq 'hs') {
+	print "Importing COSMIC Gene Census cancer genes lists ...\n";
+
+	open CANGEN, $cancgenfile or die $!;
+	while (my $l=<CANGEN>) {
+		$l =~ s/\n//;
+		$l =~ s/\r//;
+		my @temp = split /\t/, $l;
+		$canchash{$temp[0]} = $temp[1];
+		if ($temp[12] eq 'oncogene') {
+			$oncohash{$temp[0]} = $temp[1];
+		}
+		elsif ($temp[12] eq 'TSG') {
+			$tsuphash{$temp[0]} = $temp[1];
+		}
+		elsif ($temp[12] eq 'oncogene/TSG') {
+			$mixhash{$temp[0]} = $temp[1];
+		}
+		elsif ($temp[12] eq '') {
+			$censushash{$temp[0]} = $temp[1];
+		}
+	}
+	close CANGEN;
+	print "\tfound ".keys(%canchash)." cancer genes.\n";
+}
+
+##### LOADING CTD TOXIC DATA, AVAILABLE FOR BOTH HS AND MM
+my %ctdsp = (	'hs' =>	9606,
+		'mm' =>	10090,
+		'rn' => 10116);
+
+print "Importing CTD toxicology genes annotations (".$ctdsp{$sp}.") ...\n";
+my %toxgenhash=();
+my %toxgenid=();
+open CTDGEN, $ctdfile or die $!;
+while (my $l=<CTDGEN>) {
+	if ($l !~ /^\#/) {
+		$l =~ s/\n//;
+		$l =~ s/\r//;
+		my @temp = split /\t/, $l;
+# 		if ($temp[6] == $ctdsp{$sp}) {
+		if ($temp[7] == $ctdsp{$sp}) {
+			$toxgenid{uc($temp[3])} = $temp[4];
+			$toxgenhash{uc($temp[3])}{$temp[0]}++;
+		}
+	}
+}
+close CTDGEN;
+print "\tfound ".keys(%toxgenhash)." annotations.\n";
+
+## CONTROL CASE : WHEN NO DATA BANKED (EMPTY SOURCE FILE)
+if (scalar(keys(%toxgenhash)) == 0) {
+	print "\n\tWARNING : No CTD info banked ! Problem with the source file ?\n\n";
+	$ctdctrl = '<B><I>E!</I></B>';
+}
+
+##### LOADING KEGG PATHWAYS FROM UCSC TABLES
+## FIRST, LOADING knowntoKeggEntrez
+print "Importing KEGG IDs ...\n";
+my %keggtke = ();
+open KTKE, $keggtkepath{$gv} or die $!;
+while (my $l=<KTKE>) {
+	$l =~ s/\n//;
+	$l =~ s/\r//;
+	if ($l !~ /^\#/) {
+		my @temp = split /\t/, $l;
+		push @{$keggtke{$temp[0]}}, $temp[1];		## key : UCSC_transcript_ID, value : KEGG_ID
+	}
+}
+close KTKE;
+print "\tfound ".keys(%keggtke)." KEGG IDs.\n";
+## SECOND, LOADING keggMapDesc
+print "Importing KEGG descriptions ...\n";
+my %keggmd = ();
+open KMD, $keggmdpath{$gv} or die $!;
+while (my $l=<KMD>) {
+	$l =~ s/\n//;
+	$l =~ s/\r//;
+	if ($l !~ /^\#/) {
+		my @temp = split /\t/, $l;
+		$keggmd{$temp[0]} = $temp[1];		## key : KEGG_ID, value : KEGG_description
+	}
+}
+close KMD;
+print "\tfound ".keys(%keggmd)." KEGG descriptions.\n";
+## CROSSING UCSC_transcript_IDs and KEGG_descriptions
+print "Crossing KEGG IDs and descriptions ...\n";
+my %keggdesc = ();
+foreach my $kt (keys(%keggtke)) {
+	foreach my $kid (@{$keggtke{$kt}}) {
+		if (exists $keggmd{$kid}) {
+			push @{$keggdesc{$kt}}, $keggmd{$kid};		## key : UCSC_transcript_ID, value : KEGG_description
+		}
+	}
+}
+## CROSSING SYMBOLS AND KEGG DESCRIPTIONS
+print "Linking symbols to KEGG descriptions ...\n";
+foreach my $s (keys(%symbtrans)) {
+	my %skd = ();
+	foreach my $t (@{$symbtrans{$s}}) {
+		foreach my $d (@{$keggdesc{$t}}) {
+			$skd{$d}++;
+		}
+	}
+	$pathways{$s} = [ sort(keys(%skd)) ];
+}
+#####
+
+##### Adding CTD pathways annotations for human
+## LOADING KEGG+REACTOME PATHWAYS FROM CTD SOURCE, *HUMAN ONLY*
+if ($sp eq 'hs') {
+	print "Importing CTD toxicology pathways annotations ...\n";
+	open CTDPATH, $ctdpathfile or die $!;
+	while (my $l=<CTDPATH>) {
+		if ($l !~ /^\#/) {
+			$l =~ s/\n//;
+			$l =~ s/\r//;
+			my @temp = split /\t/, $l;
+			push @{$pathways{$temp[0]}}, $temp[2];
+		}
+	}
+	close CTDPATH;
+	print "\tfiltering data ...\n";
+	foreach my $s (keys(%pathways)) {
+		my %temppw = ();
+		foreach my $tpw (@{$pathways{$s}}) {
+			$temppw{$tpw}++;
+		}
+		$pathways{$s} = [ sort(keys(%temppw)) ];
+	}
+}
+#####
+
+##### LOADING FUSION GENES DATA
+## LOADING TICDB FUSION GENES *HUMAN ONLY*
+if ($sp eq 'hs') {
+	print "Importing TICdb v3.0 fusion genes list ...\n";
+	open TICGEN, $ticfile or die $!;
+	while (my $l=<TICGEN>) {
+		$l =~ s/\n//;
+		$l =~ s/\r//;
+		my @temp = split /\t/, $l;
+		$fusgenhash{$temp[0]}++;
+		$fusgenhash{$temp[1]}++;
+	}
+	close TICGEN;
+	## Control on file content
+	if (scalar(keys(%fusgenhash)) == 0) {
+		print "\n\tWARNING : No TICdb info banked ! Problem with the source file ?\n\n";
+		$fusctrl = '<B><I>E!</I></B>';
+	}
+}
+## LOADING CHIMERDB FUSION GENES
+print "Importing ChimerDB fusion genes list ...\n";
+open CHIMGEN, $chimdbfile{$sp} or die $!;
+while (my $l=<CHIMGEN>) {
+	$l =~ s/\n//;
+	$l =~ s/\r//;
+	if ($l !~ /^\#/) {
+		my @temp = split /\t/, $l;
+		if ($sp eq 'hs') {
+			$fusgenhash{$temp[0]}++;
+			$fusgenhash{$temp[1]}++;
+		}
+		elsif ($sp eq 'mm') {
+			$fusgenhash{$temp[9]}++;
+			$fusgenhash{$temp[11]}++;
+		}
+	}
+}
+close CHIMGEN;
+#####
+
+
+
+
+##### LOADING POLYMORPHISMS DATA
+## FOR HS : LOADING DGV CNVs DATA
+my $cnvcount=0;
+if ($sp eq 'hs') {
+	print "Importing DGV annotations ...\n";
+	open CNV, $dgvpath{$gv} or die $!;
+	while (my $l=<CNV>) {
+		$l =~ s/\n//;
+		$l =~ s/\r//;
+		if ($l !~ /^\#/) {
+			my @temp = split /\t/, $l;
+			my $chrA = $temp[1];
+			my $chrN = $chrom2chr{$sp}{$chrA};
+			$chrA =~ s/chr//;
+			push @{$cnvarray[$chrN-1]}, [ $temp[4], $chrA, @temp[2,3,10] ];		## ID, chrA, Start, End, type;
+			$cnvcount++;
+		}
+	}
+	close CNV;
+}
+## FOR MM : LOADING MICROSAT
+elsif ($gv =~ /^(mm(9|10)|rn4)$/) {
+	print "Importing Microsatellites annotations ...\n";
+	open MSA, $MSfilehash{$gv} or die $!;
+	while (my $l=<MSA>) {
+		$l =~ s/\n//;
+		$l =~ s/\r//;
+		if ($l !~ /^\#/) {
+			my @temp = split /\t/, $l;
+			my $chrA = $temp[1];
+			my $chrN = $chrom2chr{$sp}{$chrA};
+			push @{$cnvarray[$chrN-1]}, [ $temp[1].':'.$temp[2].'-'.$temp[3], $chrA, @temp[2,3,4] ];		## ID, chrA, Start, End, type;
+			$cnvcount++;
+		}
+	}
+	close MSA;
+}
+
+## Control on file content
+if (scalar(@cnvarray) == 0) {
+	print "\n\tWARNING : No SuperDups info banked ! Problem with the source file ?\nRQ : Normal for mm10.\n\n";
+	$cnvctrl = '<B><I>E!</I></B>';
+}
+else { print "\tfound ".$cnvcount." variations.\n"; }
+## Sorting
+print "\tsorting data ...\n";
+foreach my $c (0..$#cnvarray) {
+	@{$cnvarray[$c]} = sort { ${$a}[1] <=> ${$b}[1] || ${$a}[2] <=> ${$b}[2] } @{$cnvarray[$c]};
+}
+#####
+
+##### LOADING MIRNA DATA
+print "Importing miRNA data ...\n";
+my $mircount=0;
+open MIR, $mirpath{$gv} or die $!;
+while (my $l=<MIR>) {
+	$l =~ s/\n//;
+	$l =~ s/\r//;
+	if ($l !~ /^\#/) {
+		$l =~ s/\"//g;
+		my @temp = split /\t/, $l;
+		my $chrA = $temp[0];
+		if ($sp eq 'rn') { $chrA = 'chr'.$chrA; }
+		if (($gv eq 'mm9') or ($gv eq 'hg18')) { $chrA = 'chr'.$chrA; }
+		my $chrN = $chrom2chr{$sp}{$chrA};
+		my $mirid = '';
+		if ($gv eq 'hg18') {
+			$mirid = (split /\;/, $temp[8])[1];
+			$mirid =~ s/\ ID\=//i;
+		} else {
+			$mirid = (split /\;/, $temp[8])[2];
+			$mirid =~ s/Name\=//i;
+		}
+		push @{$mirarray[$chrN-1]}, [ $chrA, @temp[3,4], $mirid, 'NA', $temp[2] ];		# chrA, start, end, name, mirBase-score, type
+		$mircount++;
+	}
+}
+close MIR;
+## Control on file content
+if (scalar(@mirarray) == 0) {
+	print "\n\tWARNING : No miRBase info banked ! Problem with the source file ?\n\n";
+	$mirctrl = '<B><I>E!</I></B>';
+}
+else { print "\tfound ".$mircount." microRNAs.\n"; }
+
+## Sorting
+print "\tsorting data ...\n";
+foreach my $c (0..$#mirarray) {
+	@{$mirarray[$c]} = sort { ${$a}[1] <=> ${$b}[1] || ${$a}[2] <=> ${$b}[2] } @{$mirarray[$c]};
+}
+#####
+
+##### LOADING CPGISLAND DATA
+print "Importing CpGislands data ...\n";
+my $cpgcount=0;
+open CPG, $cpgpath{$gv} or die $!;
+while (my $l=<CPG>) {
+	$l =~ s/\n//;
+	$l =~ s/\r//;
+	if ($l !~ /^\#/) {
+		my @temp = split /\t/, $l;
+		if ( ($sp eq 'hs') and ($gb < 19) ) { unshift(@temp, 'NA'); }
+		if ($temp[1] =~ /^chr([0-9]+|X|Y)$/) {
+			my $chrN = $chrom2chr{$sp}{$temp[1]};
+			$temp[4] =~ s/\s//g;
+			push @{$cpgarray[$chrN-1]}, [ @temp[4,1..3,5,8..10] ];
+			$cpgcount++;
+		}
+	}
+}
+close CPG;
+## Control on file content
+if (scalar(@cpgarray) == 0) {
+	print "\n\tWARNING : No CpGisland info banked ! Problem with the source file ?\n\n";
+	$cpgctrl = '<B><I>E!</I></B>';
+}
+else { print "\tfound ".$cpgcount." CpGislands.\n"; }
+#####
+
+
+
+
+##### CORE
+foreach my $co (0..$#filez) {
+
+	my $pop0='';
+	my $pop1='';
+
+	my %untoxpathash=();
+	my %abgene=();
+
+	## Handling samplenames for modes -p2c et -s2c
+	my $s1n='';
+	my $s2n='';
+
+	## Reading input file
+	my $infile = $filez[$co];
+	$infile =~ s/\n//;
+	$infile =~ s/\r//;
+
+	my $ornam = $infile;
+	$ornam =~ s/\.[a-z0-9]+$//i;
+
+	print "\nReading input file ".$ornam."...\n";
+
+	my %header = (		'cc_categ' =>	[ 'rawP', 'adjP' ],
+				'cc_conti' =>	[ 'rawP', 'adjP' ],
+				'stac' =>	[ 'Num.probes', 'Status', 'Freq', 'Confidence'],
+				'gaia' =>	[ 'Status', 'Q-value' ],
+				'g2' =>		[ 'Num.probes', 'Status', 'Freq', 'Q-value' ],
+				'solo' =>	[ 'Num.probes', 'Status', 'Log2(ratio)', 'Ratio'],
+				'p2c' =>	[ 'Num.probes', 'Diff.l2r', 'Sig' ],
+				's2c' =>	[ 'Diff.l2r', 'Diff.Status'] );
+
+	my %headerdesc = (	'cc_categ' =>	[ 'Raw p-value', 'FDR-adjusted p-value' ],
+				'cc_conti' =>	[ 'Raw p-value', 'FDR-adjusted p-value' ],
+				'stac' =>	[ 'Number of probes', 'Genomic status. G=Gain; L=Loss; N=Normal', 'Frequency across the population', 'Statistical confidence. 0=low; 1=strong'],
+				'gaia' =>	[ 'Genomic status. G=Gain; L=Loss; N=Normal', 'Q-value (the lower the better)' ],
+				'g2' =>		[ 'Number of probes', 'Genomic status (G=Gain L=Loss N=Normal)', 'Frequency across the population', 'Q-value (the lower the better)' ],
+				'solo' =>	[ 'Number of probes', 'Genomic status (G=Gain L=Loss N=Normal)', 'Log2(ratio)', 'Ratio'],
+				'p2c' =>	[ 'Number of probes', 'Differential log2(ratio) value', 'Significance of the difference' ],
+				's2c' =>	[ 'Differential log2(ratio) value', 'Genomic status of the difference'] );
+	my @hspec=();		## Will contain needed data to compose the HTML main table header for special modes
+	my %regchr=();		## Hash to get the number of present chromosomes in the input table (and the number of regions for each)
+
+	my @indat = ();
+	my $ncateg = 0;
+	open INFILE, $infile or die $!;
+	foreach (<INFILE>) {
+		$_ =~ s/\n//;
+		$_ =~ s/\r//;
+		my @temp = split /\t/, $_;
+		if ( ($_ !~ /^\#/) and ($_ !~ /^Loc/) ) {
+			my ($chrA, $startend) = split /\:/, $temp[0];
+			my $chrN = $chrom2chr{$sp}{$chrA};
+			$chrA =~ s/chr//;
+			my ($start, $end) = split /\-/, $startend;
+			$start =~ s/^0+//;
+			$end =~ s/^0+//;
+
+			## Selection of entities based on mode
+			if ($mode eq	'cc_categ') {
+				## 0		1	2	3	"4"				Z-2		Z-1	Z
+				## chrA,	chrN,	Start,	End,	[MedianL2R] x conditions,	Test.score,	rawP,	adjP.
+				push @indat, [ $chrA, $chrN, $start, $end, @temp[4..$#temp] ];
+				$ncateg = $#temp - 6;
+
+			}
+			elsif ($mode eq	'cc_conti') {
+				## 0		1	2	3	"4"		"5"	"6"
+				## chrA,	chrN,	Start,	End,	Test.score,	rawP,	adjP.
+				push @indat, [ $chrA, $chrN, $start, $end, @temp[4..$#temp] ];
+			}
+			elsif ($mode eq	'stac') {
+				## 0		1	2	3	4		5	6	7
+				## chrA,	chrN,	Start,	End,	Num.probes,	Status,	Freq,	Confidence.
+				push @indat, [ $chrA, $chrN, $start, $end, @temp[6, 8..10] ];
+			}
+			elsif ($mode eq 'gaia') {
+				## 0	1	2	3	4	5
+				## chrA	chrN	Start	End	Status	Q-value
+				push @indat, [ $chrA, $chrN, $start, $end, @temp[2,6] ];
+			}
+			elsif ($mode eq 'g2') {
+				## 0	1	2	3	4		5	6	7
+				## chrA	chrN	Start	End	Num.probes	Status	Freq	Q-value
+				push @indat, [ $chrA, $chrN, $start, $end, @temp[1..4] ];
+			}
+			elsif ($mode eq	'solo') {
+				## 0		1	2	3	4		5	6		7
+				## chrA,	chrN,	Start,	End,	Num.probes,	Status,	Log2ratio,	Ratio.
+				push @indat, [ $chrA, $chrN, $start, $end, @temp[1..4] ];
+			}
+			elsif ($mode eq	'p2c') {
+				## Filtering out non-significant regions
+				if ($temp[7] == 0) {
+					next;
+				}
+				## 0		1	2	3	4		5		6
+				## chrA,	chrN,	Start,	End,	Num.probes,	Log2Diff,	Signif.
+				push @indat, [ $chrA, $chrN, $start, $end, @temp[5..7] ];
+				@hspec = split /\_vs\_/, $temp[1];
+			}
+			elsif ($mode eq 's2c') {
+				## 0		1	2	3	4		5		6		7		8		9
+				## chrA,	chrN,	Start,	End,	Log2.sample1,	Status.sample1	Log2.sample2,	Status.sample2	Log2Diff,	Status.Status
+				push @indat, [ $chrA, $chrN, $start, $end, @temp[6,9,7,10,8,12] ];
+
+				@hspec = split /\_vs\_/, $temp[1];
+			}
+			elsif ($mode eq	'norm') {
+				## 0		1	2	3
+				## chrA,	chrN,	Start,	End.
+				push @indat, [ $chrA, $chrN, $start, $end ];
+			}
+
+			$regchr{$chrN}++;
+		}
+		## Mode -cc : rétention du header pour y dénicher plus tard le nom des classes;
+		elsif ( ($mode eq 'cc_categ') and ($_ =~ /^\#Loc/) ) {
+			for (my $h=4; $h < $#temp-2; $h=$h+1) {
+				my ($testwd, $popwd, $ml2r) = split /\./, $temp[$h];
+				if ($h == 4) {
+					push @hspec, $testwd;
+				}
+				push @hspec, $popwd;
+			}
+			push @hspec, $temp[$#temp-2];
+			print("\n\tHSPEC : ".join(" ", @hspec)."\n\n");
+		}
+		elsif ( ($mode eq 'cc_conti') and ($_ =~ /^\#Loc/) ) {
+			push @hspec, $temp[$#temp-2];
+		}
+	}
+	close INFILE;
+
+	## If NO region is found (may be due to a bad file format, or no differential region in p2c mode after filtering on significance
+	if (scalar(@indat) == 0) {
+		print "\n\n\tNO REGION TO ANNOTATE !\n\n";
+		next;
+	}
+
+	my %indchr=();		## key = index, val = chrN;
+	my %chrind=();		## key = chrN, val = index;
+
+	my @tmp_c = sort { $a <=> $b} keys(%regchr);
+	foreach my $k (0..$#tmp_c) {
+		$indchr{$k} = $tmp_c[$k];
+		$chrind{$tmp_c[$k]} = $k;
+	}
+
+	## Splitting @indat into @regions (genomic coordinates, fixed) and @spec (mode-specific values, variable)
+	## and reformatting with chr blocks
+	print "Splitting coordinates and format-specific data ...\n";
+	my @regions=();		## Will contain [chrA, chrN, start, end] for all regions
+	my @spec=();		## Will contain all the "mode" -specific data (and nothing for normal mode)
+	foreach my $i (0..$#indat) {
+		push @{$regions[$chrind{$indat[$i][1]}]}, [ @{$indat[$i]}[0..3] ];
+		if ($mode ne 'norm') {
+			push @{$spec[$chrind{$indat[$i][1]}]}, [ @{$indat[$i]}[4..$#{$indat[$i]}] ];
+		}
+	}
+
+	## Freeing indat, not necessary anymore
+	@indat=();
+
+	my $outfile = $infile.'.html';
+
+	print "Processing data by available chromosome :\n";
+	## BY PRESENT CHROMOSOME
+	foreach my $kr (sort { $a <=> $b} keys(%indchr)) {
+
+		my $ccN = $indchr{$kr};
+		print "\t".$chr2chrom{$sp}{$ccN}.' ('.($kr+1).'/'.scalar(keys(%indchr)).')'."\n";
+		foreach my $r (0..$#{$regions[$kr]}) {
+			my @rfa = ();
+			my @curco = @{$regions[$kr][$r]};
+
+			## COMPUTING WIDTH
+			my $rw = $curco[3] - $curco[2] + 1;		## Width, in nucleotides
+
+			## GETTING CYTOBANDS
+			my $ccI = $ccN-1;		## index to communicate with @cytob
+			my $band1 = 'Undef';
+			foreach my $c (0..$#{$cytob[$ccI]}) {
+				if ( ( $curco[2] >= $cytob[$ccI][$c][1] ) and ( $curco[2] <= $cytob[$ccI][$c][2] ) ) {
+					$band1 = $cytob[$ccI][$c][3];
+					last;
+				}
+			}
+			my $band2 = 'Undef';
+			foreach my $c (0..$#{$cytob[$ccI]}) {
+				if ( ( $curco[3] >= $cytob[$ccI][$c][1] ) and ( $curco[3] <= $cytob[$ccI][$c][2] ) ) {
+					$band2 = $cytob[$ccI][$c][3];
+					last;
+				}
+			}
+
+			## GETTING GENES;
+			my %gh=();
+			my @genlist=();
+			my $gid=0;
+			my @oncolist = ();
+			my @tsuplist = ();
+			my @mixlist = ();
+			my @censuslist = ();
+			foreach my $c (0..$#{$genarray[$ccI]}) {
+
+				my $matchwd = 'out';
+				## Gene overlaps the region
+				if ( ( $genarray[$ccI][$c][2] < $curco[2] ) and ( $genarray[$ccI][$c][3] > $curco[3] ) ) {
+					$matchwd = 'over';
+				}
+				## Gene included in the region
+				elsif ( ( $genarray[$ccI][$c][2] >= $curco[2] ) and ( $genarray[$ccI][$c][3] <= $curco[3] ) ) {
+					$matchwd = 'in';
+				}
+				## Partially matched on left gene
+				elsif ( ( $genarray[$ccI][$c][3] >= $curco[2] ) and ( $genarray[$ccI][$c][2] < $curco[2] ) ) {
+					$matchwd = 'left';
+				}
+				## Partially matched on right gene
+				elsif ( ( $genarray[$ccI][$c][2] <= $curco[3] ) and ( $genarray[$ccI][$c][3] > $curco[3] ) ) {
+					$matchwd = 'right';
+				}
+				else {
+					next;
+				}
+
+				my $gsymbol = $genarray[$ccI][$c][0];
+
+				$gh{$gid} = [ $gsymbol, $matchwd, 'gene', @{$genarray[$ccI]->[$c]}[1..3], ($genarray[$ccI]->[$c]->[3] - $genarray[$ccI]->[$c]->[2] + 1), $genarray[$ccI]->[$c]->[4] ];
+
+				## CHECKING CANCER ANNOTATIONS FOR GENE
+				## IF ONCOGENE
+				if (exists $oncohash{$gsymbol}) {
+					push @oncolist, $gsymbol;
+					${$gh{$gid}}[2] = 'onco';
+				}
+				## ELSE IF TSUP
+				elsif (exists $tsuphash{$gsymbol}) {
+					push @tsuplist, $gsymbol;
+					${$gh{$gid}}[2] = 'tsup';
+				}
+				## ELSE IF MIXED
+				elsif (exists $mixhash{$gsymbol}) {
+					push @mixlist, $gsymbol;
+					${$gh{$gid}}[2] = 'mix';
+				}
+				## ELSE IF IN CENSUS
+				elsif (exists $censushash{$gsymbol}) {
+					push @censuslist, $gsymbol;
+					${$gh{$gid}}[2] = 'census';
+				}
+
+				## GETTING PATHWAYS FOR THE GENE
+				if (exists $pathways{$gsymbol}) {
+					push @{$gh{$gid}}, [ sort {$a cmp $b} @{$pathways{$gsymbol}} ];
+				}
+				else {
+					push @{$gh{$gid}}, [  ];
+				}
+
+				## GETTING CHEM TOX
+				if (exists $toxgenhash{uc($gsymbol)}) {
+					push @{$gh{$gid}}, [ $toxgenid{uc($gsymbol)}, [ sort {$a cmp $b} keys(%{$toxgenhash{uc($gsymbol)}}) ] ];
+				}
+				else {
+					push @{$gh{$gid}}, [  ];
+				}
+
+				## GETTING FUSION
+				if (exists $fusgenhash{$gsymbol}) {
+					push @{$gh{$gid}}, 'y';
+				}
+				else {
+					push @{$gh{$gid}}, 'n';
+				}
+
+				## GETTING CNV/SD FOR THE GENE
+				my @cnva=();
+				my $cnvmw='out';
+				foreach my $ck (0..$#{$cnvarray[$ccI]}) {
+
+					## CNV is overlapping the gene
+					if ( ( $cnvarray[$ccI][$ck][2] < $genarray[$ccI][$c][2] ) and (  $cnvarray[$ccI][$ck][3] > $genarray[$ccI][$c][3] ) ) {
+						$cnvmw = 'over';
+					}
+					## CNV is included in the gene
+					elsif ( ( $cnvarray[$ccI][$ck][2] >= $genarray[$ccI][$c][2] ) and (  $cnvarray[$ccI][$ck][3] <= $genarray[$ccI][$c][3] ) ) {
+						$cnvmw = 'in';
+					}
+					## CNV matches the gene on its left
+					elsif ( ( $cnvarray[$ccI][$ck][2] < $genarray[$ccI][$c][2] ) and (  $cnvarray[$ccI][$ck][3] >= $genarray[$ccI][$c][2] ) ) {
+						$cnvmw = 'in';
+					}
+					## CNV matches the gene on its right
+					elsif ( ( $cnvarray[$ccI][$ck][3] > $genarray[$ccI][$c][3] ) and (  $cnvarray[$ccI][$ck][2] <= $genarray[$ccI][$c][3] ) ) {
+						$cnvmw = 'in';
+					}
+					else {
+						next;
+					}
+					push @cnva, [ $cnvmw, $cnvarray[$ccI][$ck][0], $cnvarray[$ccI][$ck][4] ];
+				}
+				if (scalar(@cnva) > 0) {
+					push @{$gh{$gid}}, [ @cnva ];
+				}
+				else {
+					push @{$gh{$gid}}, [ ];
+				}
+				$gid++;
+			}
+
+			## GETTING CNV/SD IN THE REGION
+			my $cnvid=0;
+			my %cnvh=();
+			my $cnvmwr='out';
+			foreach my $ck (0..$#{$cnvarray[$ccI]}) {
+
+
+				## CNV overlapping the region
+				if ( ( $cnvarray[$ccI][$ck][2] < $curco[2] ) and ( $cnvarray[$ccI][$ck][3] > $curco[3] ) ) {
+					$cnvmwr = 'over';
+				}
+				## CNV included in the region
+				elsif ( ( $cnvarray[$ccI][$ck][2] >= $curco[2] ) and ( $cnvarray[$ccI][$ck][3] <= $curco[3] ) ) {
+					$cnvmwr = 'in';
+				}
+				## CNV matches the region on its left
+				elsif ( ( $cnvarray[$ccI][$ck][2] < $curco[2] ) and ( $cnvarray[$ccI][$ck][3] >= $curco[2] ) ) {
+					$cnvmwr = 'left';
+				}
+				## Partially matched on right gene
+				elsif ( ( $cnvarray[$ccI][$ck][3] > $curco[3] ) and ( $cnvarray[$ccI][$ck][2] <= $curco[3] ) ) {
+					$cnvmwr = 'right';
+				}
+				else {
+					next;
+				}
+
+				$cnvh{$cnvid} = [ $cnvarray[$ccI][$ck][0], $cnvmwr, @{$cnvarray[$ccI][$ck]}[1..3], ($cnvarray[$ccI][$ck][3] - $cnvarray[$ccI][$ck][2] + 1), $cnvarray[$ccI][$ck][4] ];
+				$cnvid++;
+			}
+
+			## GETTING MIRNA/SNORNA
+			my $mirid=0;
+			my %mirh=();
+			my $mirmw='out';
+			foreach my $mk (0..$#{$mirarray[$ccI]}) {
+
+				## Fully overlapped mir
+				if ( ( $mirarray[$ccI][$mk][1] < $curco[2] ) and ( $mirarray[$ccI][$mk][2] > $curco[3] ) ) {
+					$mirmw = 'over';
+				}
+				## Mir overlapping the region (mostly unprobable!)
+				elsif ( ( $mirarray[$ccI][$mk][1] >= $curco[2] ) and ( $mirarray[$ccI][$mk][2] <= $curco[3] ) ) {
+					$mirmw = 'in';
+				}
+				## Mir matches partially on the left
+				elsif ( ( $mirarray[$ccI][$mk][1] < $curco[2] ) and ( $mirarray[$ccI][$mk][2] >= $curco[2] ) ) {
+					$mirmw = 'left';
+				}
+				## Mir matches partially on the right
+				elsif ( ( $mirarray[$ccI][$mk][2] > $curco[3] ) and ( $mirarray[$ccI][$mk][1] <= $curco[3] ) ) {
+					$mirmw = 'right';
+				}
+				else {
+					next;
+				}
+				$mirh{$mirid} = [ $mirarray[$ccI][$mk][3], $mirmw, @{$mirarray[$ccI][$mk]}[0..2], ($mirarray[$ccI][$mk][2] - $mirarray[$ccI][$mk][1] + 1), @{$mirarray[$ccI][$mk]}[4..5] ];
+				$mirid++;
+			}
+
+			## GETTING CpGIslands
+			my $cpgid=0;
+			my %cpgh=();
+			my $cpgmw='out';
+			foreach my $gk (0..$#{$cpgarray[$ccI]}) {
+
+				## Fully overlapped CpGi
+				if ( ( $cpgarray[$ccI][$gk][2] < $curco[2] ) and ( $cpgarray[$ccI][$gk][3] > $curco[3] ) ) {
+					$cpgmw = 'over';
+				}
+				## CpGi overlapping the region (unprobable!)
+				if ( ( $cpgarray[$ccI][$gk][2] >= $curco[2] ) and ( $cpgarray[$ccI][$gk][3] <= $curco[3] ) ) {
+					$cpgmw = 'in';
+				}
+				## CpGi matches partially on the left
+				elsif ( ( $cpgarray[$ccI][$gk][2] < $curco[2] ) and ( $cpgarray[$ccI][$gk][3] >= $curco[2] ) ) {
+					$cpgmw = 'left';
+				}
+				## CpGi matches partially on the right
+				elsif ( ( $cpgarray[$ccI][$gk][3] > $curco[3] ) and ( $cpgarray[$ccI][$gk][2] <= $curco[3] ) ) {
+					$cpgmw = 'right';
+				}
+				else {
+					next;
+				}
+
+				## LOOKING FOR CLOSE GENES (< 1Kb)
+				my @closeg=();
+				foreach my $c (0..$#{$genarray[$ccI]}) {
+					if ( ( $genarray[$ccI][$c][2] <= ($cpgarray[$ccI][$gk][3] + 1000) ) and ( $genarray[$ccI][$c][3] >= ($cpgarray[$ccI][$gk][2] - 1000) ) ) {
+						push @closeg, $genarray[$ccI][$c][0];
+					}
+				}
+				$cpgh{$cpgid} = [ $cpgarray[$ccI][$gk][0], $cpgmw,  @{$cpgarray[$ccI][$gk]}[1..$#{$cpgarray[$ccI][$gk]}], [ @closeg ] ];
+				$cpgid++;
+			}
+
+			## PUT THE REGION ANNOTATIONS INTO THE BIG TABLE
+			push @{$regions[$kr][$r]}, $rw, $band1, $band2, { %gh }, { %cnvh }, { %mirh }, { %cpgh };
+		}
+	}
+
+	## Creating outdir
+	# my $odir = $ornam.'.'.$gv.'.'.$time;
+	my $odir = join('.', $ornam, $gv);
+	mkdir($odir);
+
+	## TXT OUTPUT ##
+	print "Generating TXT output ...\n";
+
+	my %genesource=('hs' => 'HGNC', 'mm' => 'MGI', 'rn' => 'RGD');
+	my %mirword=('hs' => 'miRNA', 'mm' => 'miRNA', 'rn' => 'miRNA');
+	my %mirdesc=('hs' => 'microRNAs', 'mm' => 'microRNAs', 'rn' => 'microRNAs');
+	my %cnvword=('hs' => 'CNV', 'mm' => 'Microsat', 'rn' => 'Microsat');
+	my %cnvdesc=('hs' => 'Copy Number Variations (large-scale polymorphisms)', 'mm' => 'Microsatellites', 'rn' => 'Microsatellites');
+	open TXTO, ">".$odir."/".$ornam.'.grd' or die $!;
+	open TXTGEN, ">".$odir."/".$ornam.'_genes.grd' or die $!;
+# 	open TXTCNV, ">".$odir."/".$ornam.'_cnv.grd' or die $!;
+# 	open TXTMIR, ">".$odir."/".$ornam.'_mir.grd' or die $!;
+# 	open TXTCPG, ">".$odir."/".$ornam.'_cpgi.grd' or die $!;
+	## PRINTING FIRST PART OF COMMON HEADER (=LOC)
+	print TXTO join("\t", 'Chrom', 'Chr', 'Start', 'End', 'Width', 'CytoBand.Start', 'CytoBand.End');
+	print TXTGEN join("\t", 'Chrom', 'Chr', 'Reg.start', 'Reg.end', 'Reg.Width', 'Reg.CytoBand.Start', 'Reg.CytoBand.End');
+
+	## PRINTING FORMAT-SPECIFIC PART OF THE HEADER
+	if ($mode eq 'cc_categ') {
+		foreach my $hsp (1..$#hspec) {
+			print TXTO "\t".$hspec[$hsp];
+			print TXTGEN "\t".$hspec[$hsp];
+		}
+	}
+	if ($mode eq 'cc_conti') {
+		print TXTO "\t".$hspec[$#hspec];
+		print TXTGEN "\t".$hspec[$#hspec];
+	}
+	if ($mode eq 's2c') {
+		print TXTO "\t", join("\t", $hspec[0].'.l2r', $hspec[0].'.Status', $hspec[1].'.l2r', $hspec[1].'.Status');
+		print TXTGEN "\t", join("\t", $hspec[0].'.l2r', $hspec[0].'.Status', $hspec[1].'.l2r', $hspec[1].'.Status');
+	}
+	if ($mode ne 'norm') {
+		print TXTO "\t".join("\t", @{$header{$mode}});
+		print TXTGEN "\t".join("\t", @{$header{$mode}});
+	}
+
+	## PRINTING LAST PART OF COMMON HEADER (=ANNOT)
+	print TXTO "\t".join("\t", 'Left.match.genes', 'Inside.match.genes', 'Right.match.genes', 'Overlapping.match.genes', 'Genes.all', 'Onco.genes', 'Tsup.genes', 'Mix.genes', 'Census.genes', 'Fusion.genes', $cnvword{$sp}, $mirword{$sp}, 'CpGislands')."\n";
+	print TXTGEN "\t".join("\t", 'Symbol', 'Gene.start', 'Gene.end', 'Gene.width', 'Match.type', 'Cancer.type', 'Fusion', 'Description', 'Pathways', 'CTD.molecules', 'CNVs')."\n";
+
+	## PREPARING THE BIG WORD FOR GENES TXT TABLE
+	foreach my $kr (sort {$a <=> $b} keys(%indchr)) {
+
+		my $ccN = $indchr{$kr};
+		foreach my $r (0..$#{$regions[$kr]}) {
+			## PRINTING FIRST PART OF COMMON DATA (=LOC)
+			print TXTO join("\t", @{$regions[$kr][$r]}[0..6]);
+
+			## PRINTING FORMAT-SPECIFIC PART OF THE DATA
+			if ($mode ne 'norm') {
+				print TXTO "\t".join("\t", @{$spec[$kr][$r]});
+			}
+
+			## IF THERE ARE GENES
+			if (scalar(keys(%{$regions[$kr][$r][7]})) > 0) {
+				my %gmatch=();		## KEY : TYPES OF MATCH (left/right/in/over), VALUE : ORDERED SYMBOLS
+				my %ggtype=();		## KEY : TYPES OF GENE (gene/onco/tsup/mix/census), VALUE : ORDERED SYMBOLS
+				my @gfus=();		## FUSION GENES (ORDERED SYMBOLS)
+				foreach my $gid (sort { $a <=> $b } keys(%{$regions[$kr][$r][7]})) {
+					push @{$gmatch{${$regions[$kr][$r][7]{$gid}}[1]}}, ${$regions[$kr][$r][7]{$gid}}[0];
+					push @{$ggtype{${$regions[$kr][$r][7]{$gid}}[2]}}, ${$regions[$kr][$r][7]{$gid}}[0];
+					if (${$regions[$kr][$r][7]{$gid}}[10] eq 'y') {
+						push @gfus, ${$regions[$kr][$r][7]{$gid}}[0];
+					}
+				}
+
+				## PRINTING MATCH TYPE
+				if (scalar(keys(%gmatch)) > 0) {
+					foreach my $gmk ('left', 'in', 'right', 'over') {
+						if (exists($gmatch{$gmk}) > 0) {
+							print TXTO "\t".scalar(@{$gmatch{$gmk}}).' ('.join(',', @{$gmatch{$gmk}}).')';
+						}
+						else {
+							print TXTO "\t".0;
+						}
+					}
+				}
+				## PRINTING GENES TYPES
+				my @allgenes = ();
+				foreach my $ggtk (keys(%ggtype)) {
+					push @allgenes, @{$ggtype{$ggtk}};
+				}
+				if (scalar(@allgenes) > 0) {
+					@allgenes = sort { $a cmp $b } @allgenes;
+					print TXTO "\t".scalar(@allgenes).' ('.join(',', @allgenes).')';
+					foreach my $ggtk2 ('onco', 'tsup', 'mix', 'census') {
+						if (exists($ggtype{$ggtk2}) > 0) {
+							print TXTO "\t".scalar(@{$ggtype{$ggtk2}}).' ('.join(',', sort {$a cmp $b} @{$ggtype{$ggtk2}}).')';
+						}
+						else {
+							print TXTO "\t".0;
+						}
+					}
+				}
+				else {
+					print TXTO "\t".join("\t", 0, 0, 0, 0, 0, 0);
+				}
+				## FUSION GENES
+				if (scalar(@gfus) > 0) {
+					print TXTO "\t".scalar(@gfus).' ('.join(",", @gfus).')';
+				}
+				else {
+					print TXTO "\t".0;
+				}
+			}
+			else {
+				print TXTO "\t".join("\t", 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0);
+			}
+			## IF THERE ARE CNVs / miRNAs / CpGIslands
+			foreach my $i (8..10) {
+				my @ilist=();
+				if (scalar(keys(%{$regions[$kr][$r][$i]})) > 0) {
+					if ($i == 9) {
+						foreach my $iik (sort {$a <=> $b} keys(%{$regions[$kr][$r][$i]})) {
+							push @ilist, ${$regions[$kr][$r][$i]{$iik}}[0];
+						}
+						print TXTO "\t".scalar(keys(%{$regions[$kr][$r][$i]})).' ('.join(',', @ilist).')';
+					}
+					else {
+						print TXTO "\t".scalar(keys(%{$regions[$kr][$r][$i]}));
+					}
+				}
+				else {
+					print TXTO "\t".0;
+				}
+			}
+			print TXTO "\n";
+		}
+	}
+	close TXTO;
+
+	## HTML OUTPUT ##
+	print "Generating HTML output ...\n";
+
+	my %hrowspan = (
+		'norm' => '',
+		'p2c' => '',
+		'stac' => '',
+		'solo' => '',
+		'cc_categ' => ' rowspan=2',
+		'cc_conti' => '',
+		's2c'=> ' rowspan=2'
+		);
+
+	my %hcolspan = (
+		'cc_categ' => $ncateg,
+		'cc_conti' => 3,
+		's2c' => 2
+		);
+
+	my %adapter_colspan = (
+		'stac' => 12,
+		'gaia' => 10,
+		'g2' => 12,
+		'solo' => 12,
+		'cc_categ' => 11 + $ncateg,
+		'cc_conti' => 11,
+		's2c' => 14,
+		'p2c' => 14,
+		'norm' => 8
+		);
+
+	## HTML LINKS
+	my %links = (
+		'hs' => {
+			'ucsc' =>		'http://genome.ucsc.edu/cgi-bin/hgTracks?db='.$gv.'&position=',
+			'genedesc' =>	'http://www.genecards.org/cgi-bin/carddisp.pl?gene=',
+			'chem' =>		'http://ctd.mdibl.org/detail.go?type=gene&db=GENE&acc=',
+			'var' =>		'http://dgv.tcag.ca/dgv/app/variant?id=',
+			'varmulti' =>	'http://dgv.tcag.ca/gb2/gbrowse/dgv2_'.$gv.'/?name=',
+			'mirbase' =>	'http://www.mirbase.org/cgi-bin/mirna_entry.pl?id=',
+			'mirorg' =>		'http://www.microrna.org/microrna/getTargets.do?matureName=',
+			'cpg' =>		'http://genome.ucsc.edu/cgi-bin/hgTracks?db='.$gv.'&cpgIslandExt=full&position='
+			},
+		'mm' => {
+			'ucsc' =>		'http://genome.ucsc.edu/cgi-bin/hgTracks?db='.$gv.'&position=',
+			'genedesc' =>	'http://www.informatics.jax.org/searchtool/Search.do?query=',
+			'chem' =>		'http://ctd.mdibl.org/detail.go?type=gene&db=GENE&acc=',
+			'var' =>		'http://genome.ucsc.edu/cgi-bin/hgTracks?db='.$gv.'&microsat=full&position=',
+			'varmulti' =>	'http://genome.ucsc.edu/cgi-bin/hgTracks?db='.$gv.'&microsat=full&position=',
+			'mirbase' =>	'http://www.mirbase.org/cgi-bin/mirna_entry.pl?id=',
+			'mirorg' =>		'http://www.microrna.org/microrna/getTargets.do?matureName=',
+			'cpg' =>		'http://genome.ucsc.edu/cgi-bin/hgTracks?db='.$gv.'&cpgIslandExt=full&position='
+			},
+		'rn' => {
+			'ucsc' =>		'http://genome.ucsc.edu/cgi-bin/hgTracks?db='.$gv.'&position=',
+			'genedesc' =>	'http://rgd.mcw.edu/rgdweb/search/genes.html?speciesType=3&term=',
+			'chem' =>		'http://ctd.mdibl.org/detail.go?type=gene&db=GENE&acc=',
+			'var' =>		'http://genome.ucsc.edu/cgi-bin/hgTracks?db='.$gv.'&microsat=full&position=',
+			'varmulti' =>	'http://genome.ucsc.edu/cgi-bin/hgTracks?db='.$gv.'&microsat=full&position=',
+			'mirbase' =>	'http://www.mirbase.org/cgi-bin/mirna_entry.pl?id=',
+			'mirorg' =>		'http://www.microrna.org/microrna/getTargets.do?matureName=',
+			'cpg' =>		'http://genome.ucsc.edu/cgi-bin/hgTracks?db='.$gv.'&cpgIslandExt=full&position='
+			});
+
+
+	## Creating chromosomes HTML pages
+	foreach my $kr (sort {$a <=> $b} keys(%indchr)) {
+		my $curchrom = $chr2chrom{$sp}{$indchr{$kr}};
+		my $hcr = $curchrom;
+		$hcr =~ s/chr//;
+
+		open HTMLO, ">".$odir."/".$curchrom.".html" or die $!;
+		## HTML HEAD PART ONE : LOC
+		print HTMLO "<html>\n<head>\n<title>".$ornam." : Genomic regions on ".$curchrom."</title>\n<meta http-equiv=Content-Type content=text/html; charset=iso-8859-1>\n";
+		## SCRIPT FOR THE FLOATING PANEL : PART1
+		print HTMLO "<script>\nif (!document.layers)\ndocument.write('<div id=divStayTopLeft style=position:absolute>')\n</script>\n";
+		## BUILDING THE FLOATING PANEL
+		print HTMLO "<layer id=divStayTopLeft>\n<table border=0 width=10 cellspacing=0 cellpadding=0>\n";
+		foreach my $kr2 (sort {$a <=> $b} keys(%indchr)) {
+			my $curchrom2 = $chr2chrom{$sp}{$indchr{$kr2}};
+				my $hcr2 = $curchrom2;
+				$hcr2 =~ s/chr//;
+				print HTMLO "  <tr align=center><td><a href=".$curchrom2.".html>".$hcr2."</td></tr>\n";
+		}
+		print HTMLO "  <tr align=center><td>-</td></tr>\n  <tr align=center><td><a href=#page_top>T</td></tr>\n  <tr align=center><td><a href=#page_bottom>B</td></tr>\n  <tr align=center></tr>\n</table>\n</layer>\n";
+		## THE TOGGLE FUNCTION
+		print HTMLO "<script type='text/javascript'>
+	var toggle = function (id, type)
+	{
+		var hide = function (objContainer, objDisplay) {
+			objContainer.style.display = 'none';
+			objDisplay.style.display = 'none';
+			document.getElementById('data').appendChild(objDisplay);
+		}
+		var display = type + id;
+		var objDisplay = document.getElementById(display);
+		var line = 'line' + id;
+		var container = 'container' + id;
+		var objContainer = document.getElementById(container);
+		var toggle = (document.getElementById(container).style.display === 'table-row' ? true : false);
+		if (toggle === true) {
+			var activeId = document.getElementById(container).firstElementChild.firstElementChild.id;
+		}
+		//empty container first (in case there was another toggle before, in order not to stack them
+		var child = !document.getElementById(container).firstElementChild.firstElementChild || hide(objContainer, objContainer.firstElementChild.firstElementChild);
+
+		if (toggle === false) {
+			objContainer.style.display = 'table-row';
+			objDisplay.style.display = 'block';
+			objContainer.firstElementChild.appendChild(objDisplay);
+			var parent = document.getElementById(container).nextElementSibling;
+			var copyHeader = document.getElementById('header').cloneNode(true);
+			copyHeader.id = 'header' + id;
+			if (parent !== null) {
+				parent.parentNode.insertBefore(copyHeader, parent);
+			}
+			if (document.getElementById('headerbis') !== null) {
+				var copyHeaderBis = document.getElementById('headerbis').cloneNode(true);
+				copyHeaderBis.id = 'headerbis' + id;
+				parent.parentNode.insertBefore(copyHeaderBis, parent);
+			}
+			else { console.log('Not the weird one'); }
+		}
+		else {
+			var activeType = activeId.replace(/[0-9]/g, '');
+			if (activeType !== type) {
+				objContainer.style.display = 'table-row';
+				objDisplay.style.display = 'block';
+				objContainer.firstElementChild.appendChild(objDisplay);
+			}
+			else {
+				var removeHeader = document.getElementById('header' + id);
+				if (removeHeader !== null) {
+					removeHeader.parentNode.removeChild(removeHeader);
+				}
+				if (document.getElementById('headerbis' + id) !== null) {
+					var removeHeaderBis = document.getElementById('headerbis' + id);
+					removeHeaderBis.parentNode.removeChild(removeHeaderBis);
+				}
+			}
+		}
+	}
+	</script>\n";
+		## SCRIPT FOR THE FLOATING PANEL : PART DEUX
+		print HTMLO "<script type='text/javascript'>
+var verticalpos=\"fromtop\"
+
+if (!document.layers)
+document.write('</div>')
+
+function JSFX_FloatTopDiv()
+{
+	var startX = 3,
+	startY = 10;
+	var ns = (navigator.appName.indexOf(\"Netscape\") != -1);
+	var d = document;
+	function ml(id)
+	{
+		var el=d.getElementById?d.getElementById(id):d.all?d.all[id]:d.layers[id];
+		if(d.layers)el.style=el;
+		el.sP=function(x,y){this.style.left=x;this.style.top=y;};
+		el.x = startX;
+		if (verticalpos==\"fromtop\")
+		el.y = startY;
+		else{
+		el.y = ns ? pageYOffset + innerHeight : document.body.scrollTop + document.body.clientHeight;
+		el.y -= startY;
+		}
+		return el;
+	}
+	window.stayTopLeft=function()
+	{
+		if (verticalpos==\"fromtop\"){
+		var pY = ns ? pageYOffset : document.body.scrollTop;
+		ftlObj.y += (pY + startY - ftlObj.y)/8;
+		}
+		else{
+		var pY = ns ? pageYOffset + innerHeight : document.body.scrollTop + document.body.clientHeight;
+		ftlObj.y += (pY - startY - ftlObj.y)/8;
+		}
+		ftlObj.sP(ftlObj.x, ftlObj.y);
+		setTimeout(\"stayTopLeft()\", 10);
+	}
+	ftlObj = ml(\"divStayTopLeft\");
+	stayTopLeft();
+}
+JSFX_FloatTopDiv();
+</script>\n";
+
+		print HTMLO "</head>\n<body>\n";
+
+		## TITLE
+
+		## MAIN TABLE
+		## Top anchor
+		print HTMLO '<a name=page_top> </a>'."\n";
+		print HTMLO '<!-- Main table -->'."\n".'<table border=0 width=98% align=center>'."\n";
+		## HEADER : COMMON PART 1
+		print HTMLO ' <tr id="header" align=center bgcolor='.$colcol{'main'}.'><b><th width=10%'.$hrowspan{$mode}.' title="Location of the genomic region">Loc</th><th width=5%'.$hrowspan{$mode}.' title="Length of the genomic region">Width</th><th width=5%'.$hrowspan{$mode}.' title="Start cytogenetic band">Band1</th><th width=5%'.$hrowspan{$mode}.' title="End cytogenetic band">Band2</th>';
+		## HEADER : SPECIAL SPEC FOR CC : POP NAMES
+		if ($mode eq 'cc_categ') {
+			print HTMLO '<th colspan='.$hcolspan{$mode}.' title="Median log2(ratio)">Median log2(ratio)</th>';
+		}
+		## HEADER : SPECIAL SPEC FOR S2C
+		if ($mode eq 's2c') {
+			foreach my $spi (0..$#hspec) {
+				print HTMLO '<th colspan='.$hcolspan{$mode}.' title="Sample '.($spi+1).'">'.$hspec[$spi].'</th>';
+			}
+		}
+		## HEADER : SPEC FOR MODES
+		if ($mode ne 'norm') {
+			if ($mode eq 'cc_categ') {
+				## Adding the test type to the header
+				print HTMLO '<th width=5%'.$hrowspan{$mode}.' title="Statistical test applied for the populations comparison">'.$hspec[$#hspec].'</th>';
+			}
+			if ($mode eq 'cc_conti') {
+				## Adding the test type to the header
+				print HTMLO '<th width=5%'.$hrowspan{$mode}.' title="Statistical test applied for the populations comparison">'.$hspec[$#hspec].'</th>';
+			}
+			foreach my $hi (0..$#{$header{$mode}}) {
+				print HTMLO '<th width=5%'.$hrowspan{$mode}.' title="'.${$headerdesc{$mode}}[$hi].'">'.${$header{$mode}}[$hi].'</th>';
+			}
+		}
+		## HEADER : COMMON PART DEUX : ANNOT
+		print HTMLO '<th width=5%'.$hrowspan{$mode}.' bgcolor='.$colcol{'gene'}.' title="Genes. Red=Oncogenes (COSMIC Gene Census); Green=Tumor-suppressor genes (COSMIC Gene Census); Grey=Context-dependent cancer genes (COSMIC Gene Census); Blue=Unprecised cancer genes (COSMIC Gene Census); Thin blue=All genes">Genes</th><th width=5%'.$hrowspan{$mode}.' bgcolor='.$colcol{'cnv'}.' title="'.$cnvdesc{$sp}.'">'.$cnvword{$sp}.'</th><th width=5%'.$hrowspan{$mode}.' bgcolor='.$colcol{'mir'}.' title="'.$mirdesc{$sp}.'">'.$mirword{$sp}.'</th><th width=5%'.$hrowspan{$mode}.' bgcolor='.$colcol{'cpg'}.' title="CpG Islands">CpGisl</th>';
+		print HTMLO '</b></tr>'."\n";
+
+		## HEADER : SPECIAL SPEC FOR CC AND S2C : LINE 2
+		if ($mode eq 'cc_categ') {
+			print HTMLO ' <tr id="headerbis" align=center bgcolor='.$colcol{'main'}.'><b>';
+			foreach my $hsp (1..($#hspec-1)) {
+				print HTMLO '<th width=3% title="'.$hspec[0].' '.$hspec[$hsp].'">'.$hspec[$hsp].'</th>';
+			}
+			print HTMLO '</b></tr>'."\n";
+		}
+		if ($mode eq 's2c') {
+			print HTMLO ' <tr align=center bgcolor='.$colcol{'main'}.'><b>';
+			foreach (0..$#hspec) {
+				print HTMLO '<th width=3% title="Genomic status. G=Gain; L=Loss; N=Normal">Status</th><th width=3% title="log2(ratio)">L2R</th>';
+			}
+			print HTMLO '</b></tr>'."\n";
+		}
+
+		## BY REGIONS FOR MAIN TABLE
+		foreach my $r (0..$#{$regions[$kr]}) {
+			## LINE IDENTIFIER
+			print HTMLO " <tr id=line".$r." line=l".$r." align=right bgcolor=".$colcol{'back'}.">";
+
+			## COMMON PART ONE : LOC
+			my $chrstartend = $curchrom.':'.join("-", @{$regions[$kr][$r]}[2,3]);
+			my $cse = $chrstartend;
+			$cse =~ s/^chr//i;
+			## LOC & WIDTH
+			print HTMLO "<td><a href=".$links{$sp}{'ucsc'}.$chrstartend." target=_new>".$cse."</td><td>".&widthconv(${$regions[$kr][$r]}[4])."</td>";
+			## CYTOBAND START & CYTOBAND END
+			foreach my $cbi (5,6) {
+				print HTMLO "<td><a href=".$links{$sp}{'ucsc'}.$hcr.${$regions[$kr][$r]}[$cbi]." target=_new>".$hcr.${$regions[$kr][$r]}[$cbi]."</td>";
+			}
+
+			## SPEC MODE PART
+			if ($mode eq 'cc_categ') {
+				foreach my $cci (0..($#hspec-2)) {
+					print HTMLO "<td align=center>".sprintf("%.2f", $spec[$kr][$r][$cci])."</td>";
+				}
+				my $lend = $#{$spec[$kr][$r]};
+				print HTMLO "<td>".sprintf("%.3f", $spec[$kr][$r][$lend-2])."</td><td>".sprintf("%.2E", $spec[$kr][$r][$lend-1])."</td><td>".sprintf("%.2E", $spec[$kr][$r][$lend])."</td>";
+			}
+			elsif ($mode eq 'cc_conti') {
+				my $lend = $#{$spec[$kr][$r]};
+				print HTMLO "<td>".sprintf("%.3f", $spec[$kr][$r][$lend-2])."</td><td>".sprintf("%.2E", $spec[$kr][$r][$lend-1])."</td><td>".sprintf("%.2E", $spec[$kr][$r][$lend])."</td>";
+			}
+			elsif ($mode eq 's2c') {
+				for (my $s2ci=0; $s2ci < ($#{$spec[$kr][$r]} - 2); $s2ci = $s2ci+2) {
+					print HTMLO "<td align=center bgcolor=".$statuscol{$spec[$kr][$r][$s2ci+1]}.">".$spec[$kr][$r][$s2ci+1]."</td><td>".&l2rformat($spec[$kr][$r][$s2ci])."</td>";
+				}
+				print HTMLO "<td>".&l2rformat($spec[$kr][$r][4])."</td><td align=center>".$spec[$kr][$r][5]."</td>";
+			}
+			elsif ($mode eq 'solo') {
+				print HTMLO "<td>".$spec[$kr][$r][0]."</td><td align=center bgcolor=".$statuscol{$spec[$kr][$r][1]}.">".$spec[$kr][$r][1]."</td><td>".&l2rformat($spec[$kr][$r][2])."</td><td>".sprintf("%.2f", $spec[$kr][$r][3])."</td>";
+			}
+			elsif ($mode eq 'stac') {
+				print HTMLO "<td>".$spec[$kr][$r][0]."</td><td align=center bgcolor=".$statuscol{$spec[$kr][$r][1]}.">".$spec[$kr][$r][1]."</td><td>".sprintf("%.1f", $spec[$kr][$r][2]*100)."%</td><td>".$spec[$kr][$r][3]."</td>";
+			}
+			elsif ($mode eq 'gaia') {
+				print HTMLO '<td align=center bgcolor='.$statuscol{$spec[$kr][$r][0]}.'>'.$spec[$kr][$r][0].'</td><td>'.sprintf("%.2f", $spec[$kr][$r][1]).'</td>';
+			}
+			elsif ($mode eq 'g2') {
+				print HTMLO '<td>'.$spec[$kr][$r][0].'</td><td align=center bgcolor='.$statuscol{$spec[$kr][$r][1]}.'>'.$spec[$kr][$r][1].'</td><td>'.sprintf("%.1f", $spec[$kr][$r][2]*100).'%</td><td>'.sprintf("%.2E", $spec[$kr][$r][3]).'</td>';
+			}
+			elsif ($mode eq 'p2c') {
+				print HTMLO "<td>".$spec[$kr][$r][0]."</td><td>".&l2rformat($spec[$kr][$r][1])."</td><td>".$spec[$kr][$r][2]."</td>";
+			}
+
+			## COMMON PART DEUX : ANNOT
+			## GENES
+			if (scalar(keys(%{$regions[$kr][$r][7]})) > 0) {
+				print HTMLO "<td>";
+				## Counting genes by cancer-type
+
+				my %ggtypecount=();		## KEY : TYPES OF GENE (gene/onco/tsup/mix/census), VALUE : ORDERED SYMBOLS
+				foreach my $gid (sort { $a <=> $b } keys(%{$regions[$kr][$r][7]})) {
+					$ggtypecount{${$regions[$kr][$r][7]{$gid}}[2]}++;
+				}
+				foreach my $ggtk ('onco', 'tsup', 'mix', 'census') {
+					if (exists($ggtypecount{$ggtk})) {
+						print HTMLO "<b><font size=-1 color=".$gtypecol{$ggtk}.">".$ggtypecount{$ggtk}." </font></b>";
+					}
+				}
+				print HTMLO "<a class='link' href=javascript:toggle(".$r.",'gene');>".scalar(keys(%{$regions[$kr][$r][7]}))."</a></td>";
+			}
+			## If there ain't any (gene)
+			else {
+				print HTMLO "<td>-</td>";
+			}
+
+			## CNVs / miRNAs / CpGIslands
+			my %cmc = (	8 =>	'cnv',
+					9 =>	'mir',
+					10 =>	'cpg'	);
+
+			foreach my $i (8..10) {
+				my @ilist=();
+				if (scalar(keys(%{$regions[$kr][$r][$i]})) > 0) {
+					print HTMLO "<td><a class='link' href=javascript:toggle(".$r.",'".$cmc{$i}."');>".scalar(keys(%{$regions[$kr][$r][$i]}))."</a></td>";
+				}
+				## If there ain't any
+				else {
+					print HTMLO "<td>-</td>";
+				}
+			}
+			print HTMLO "</tr>\n <tr id='container".$r."' style='display:none;'><td colspan='".$adapter_colspan{$mode}."'></td></tr>\n";
+		}
+		print HTMLO "</table>\n";
+		print HTMLO "<div id='data' style='display:none;'>\n";
+
+		## GENES TABLE
+		## BY REGIONS FOR MAIN TABLE
+		foreach my $r (0..$#{$regions[$kr]}) {
+			## IF THERE ARE GENES
+			if (scalar(keys(%{$regions[$kr][$r][7]})) > 0) {
+				print HTMLO '<!-- Genes table '.$r." -->\n<div id=gene".$r." bloc".$r."=".$r." style='display:none;'>\n <br>\n <table border=0 width=98% align=center>"."\n";
+				## GENES HEADER
+				my %gheader = (		0 =>	[ 'Gene', 'Gene symbol ('.$genesource{$sp}.'). [italic = partial hit ; bold = cancer gene ; stroked = fusion gene]', 10],
+							1 =>	[ 'Chr', 'Chromosome (UCSC)', 5],
+							2 =>	[ 'Start', 'Gene start (UCSC)', 8],
+							3 =>	[ 'End', 'Gene end (UCSC)', 8],
+							4 =>	[ 'Width', 'Gene size (UCSC)', 6],
+							5 =>	[ 'Description', 'Gene description (HGNC, Entrez Gene) [highlight : cancer keywords]', 24],
+							6 =>	[ 'Pathways', 'Pathways in which the gene is involved (KEGG, Reactome) [highlight = cancer keywords]', 24],
+							7 =>	[ 'CTD', 'Chemicals and molecules known to have an effect on the expression of the gene (CTDbase)', 5],
+							8 =>	[ $cnvword{$sp}, 'Copy Number Variations overlapping the gene (DGV)', 5]	);
+
+				print HTMLO '  <tr align=center bgcolor='.$colcol{'gene'}.'><b>';
+				foreach my $ghi (sort {$a <=> $b} keys(%gheader)) {
+					print HTMLO '<th width='.${$gheader{$ghi}}[2].'% title="'.${$gheader{$ghi}}[1].'">'.${$gheader{$ghi}}[0].'</th>';
+				}
+				print HTMLO '</b></tr>'."\n";
+
+				## GENES VALUES
+				my %gmatch=();		## KEY : TYPES OF MATCH (left/right/in/over), VALUE : ORDERED SYMBOLS
+				my %ggtype=();		## KEY : TYPES OF GENE (gene/onco/tsup/mix/census), VALUE : ORDERED SYMBOLS
+				my @gfus=();		## FUSION GENES (ORDERED SYMBOLS)
+				foreach my $gid (sort { $a <=> $b } keys(%{$regions[$kr][$r][7]})) {
+
+					print HTMLO '  <tr align=right';
+
+					## If gene type is onco, tsup, mix or census, colorize the line background
+					if (exists($gsubcol{${$regions[$kr][$r][7]{$gid}}[2]})) {
+						print HTMLO ' bgcolor='.$gsubcol{${$regions[$kr][$r][7]{$gid}}[2]}.' title="'.$gsubtitle{${$regions[$kr][$r][7]{$gid}}[2]}.'"';
+					}
+					else {
+						print HTMLO ' bgcolor='.$colcol{'back'};
+					}
+					print HTMLO ">";
+
+					## SYMBOL
+					my $symbwrite = ${$regions[$kr][$r][7]{$gid}}[0];
+					## If gene type is not 'gene', make it bold
+					if (${$regions[$kr][$r][7]{$gid}}[2] ne 'gene') {
+						$symbwrite = "<b>".$symbwrite."</b>";
+					}
+					## If gene is not fully in, make it italic
+					if (${$regions[$kr][$r][7]{$gid}}[1] ne 'in') {
+						$symbwrite = "<i>".$symbwrite."</i>";
+					}
+					## If gene is a fusion gene, make it stroked
+					if (exists($fusgenhash{${$regions[$kr][$r][7]{$gid}}[0]})) {
+						$symbwrite = "<s>".$symbwrite."</s>";
+					}
+
+					$symbwrite = "<a href=".$links{$sp}{'ucsc'}.${$regions[$kr][$r][7]{$gid}}[0]." target=_new>".$symbwrite."</a>";
+
+					print HTMLO "<td>".$symbwrite."</td>";
+
+					## CHRA, Start, End, Width (formatted)
+					print HTMLO "<td align=center>".${$regions[$kr][$r][7]{$gid}}[3]."</td><td>".&triplet(${$regions[$kr][$r][7]{$gid}}[4])."</td><td>".&triplet(${$regions[$kr][$r][7]{$gid}}[5])."</td><td>".&widthconv(${$regions[$kr][$r][7]{$gid}}[6])."</td>";
+
+					## Description
+					my $oridesc = ${$regions[$kr][$r][7]{$gid}}[7];
+					my $mydesc = $oridesc;
+					foreach my $ckw (@cancerkeywords) {
+						if ($oridesc =~ /$ckw/i) {
+							# $mydesc = "<span style=background:#FFFF66>".$oridesc."</span>";
+							$mydesc = "<mark>".$oridesc."</mark>";
+							last;
+						}
+					}
+					print HTMLO "<td><a href=".$links{$sp}{'genedesc'}.${$regions[$kr][$r][7]{$gid}}[0]." target=_new>".$mydesc."</a></td>";
+
+
+
+					## Pathways
+					## If some exist for this gene
+					if (scalar(@{${$regions[$kr][$r][7]{$gid}}[8]}) > 0) {
+						my @mypthwys=();
+						print HTMLO "<td align=left>";
+						foreach my $p (@{${$regions[$kr][$r][7]{$gid}}[8]}) {
+							my $p2 = $p;
+							foreach my $ckw (@cancerkeywords) {
+								if ($p2 =~ /$ckw/i) {
+									# $p2 = "<span style=background:#FFFF66>".$p2."</span>";
+									$p2 = "<mark>".$p2."</mark>";
+									last;
+								}
+							}
+							push @mypthwys, $p2;
+						}
+						print HTMLO join("<br>", @mypthwys)."</td>";
+					}
+					else {
+						print HTMLO "<td>-</td>";
+					}
+
+					## CTD molecules
+					if (scalar(@{${$regions[$kr][$r][7]{$gid}}[9]}) > 0) {
+						print HTMLO "<td align=center><a href=".$links{$sp}{'chem'}.${$regions[$kr][$r][7]{$gid}}[9][0]." target=_new>".scalar(@{${$regions[$kr][$r][7]{$gid}}[9][1]})."</a></td>";
+					}
+					else {
+						print HTMLO "<td>-</td>";
+					}
+
+					## CNV/SegDups
+					if (scalar(@{${$regions[$kr][$r][7]{$gid}}[11]}) > 0) {
+						print HTMLO "<td align=center><a href=".$links{$sp}{'varmulti'}."chr".${$regions[$kr][$r][7]{$gid}}[3].":".${$regions[$kr][$r][7]{$gid}}[4]."-".${$regions[$kr][$r][7]{$gid}}[5]." target=_new>".scalar(@{${$regions[$kr][$r][7]{$gid}}[11]})."</a></td>";
+					}
+					else {
+						print HTMLO "<td>-</td>";
+					}
+					print HTMLO "</tr>\n";
+
+					## TXTGEN
+					## FUSION
+					my $fustag = 'no';
+					if (exists $fusgenhash{${$regions[$kr][$r][7]{$gid}}[0]}) {
+						$fustag = 'yes';
+					}
+					## PATHWAYS
+					my $pathtag = '-';
+					if (scalar(@{${$regions[$kr][$r][7]{$gid}}[8]}) > 0) {
+						$pathtag = scalar(@{${$regions[$kr][$r][7]{$gid}}[8]}).' ('.join(',',@{${$regions[$kr][$r][7]{$gid}}[8]}).')';
+					}
+# 					## CTD
+# 					my $ctdtag = '-';
+# 					if (scalar(@{${$regions[$kr][$r][7]{$gid}}[9]}) > 0) {
+# 						$ctdtag = scalar(@{${$regions[$kr][$r][7]{$gid}}[9]}).' ('.join(',',@{${$regions[$kr][$r][7]{$gid}}[9]}).')';
+# 					}
+# 					## CNV
+# 					my $cnvtag = '-';
+# 					if (scalar(@{${$regions[$kr][$r][7]{$gid}}[11]}) > 0) {
+# 						$cnvtag = scalar(@{${$regions[$kr][$r][7]{$gid}}[11]}).' ('.join(',',@{${$regions[$kr][$r][7]{$gid}}[11]}).')';
+# 					}
+					print TXTGEN join("\t", @{$regions[$kr][$r]}[0..6]);
+					if ($mode ne 'norm') {
+						print TXTGEN "\t".join("\t", @{$spec[$kr][$r]});
+					}
+					print TXTGEN "\t".join("\t", ${$regions[$kr][$r][7]{$gid}}[0], @{$regions[$kr][$r][7]{$gid}}[4,5], &widthconv(${$regions[$kr][$r][7]{$gid}}[6]), @{$regions[$kr][$r][7]{$gid}}[1,2], $fustag, $oridesc, $pathtag, scalar(@{${$regions[$kr][$r][7]{$gid}}[9]}), scalar(@{${$regions[$kr][$r][7]{$gid}}[11]}))."\n";
+				}
+				print HTMLO " </table>\n <br>\n</div>\n";
+			}
+		}
+
+		## CNVs TABLE
+		## BY REGIONS FOR MAIN TABLE
+		foreach my $r (0..$#{$regions[$kr]}) {
+		## IF THERE ARE CNVs
+			if (scalar(keys(%{$regions[$kr][$r][8]})) > 0) {
+				print HTMLO '<!-- CNVs table '.$r.' -->'."\n".'<div id=cnv'.$r.' bloc'.$r.'='.$r.' style="display:none;">'."\n".'<br>'."\n".'<table border=0 width=98% align=center>'."\n";
+				## CNVs HEADER
+				my %cheader = (		0 =>	[ $cnvword{$sp}, $cnvdesc{$sp}, 15],
+							1 =>	[ 'Chr', 'Chromosome (UCSC)', 10],
+							2 =>	[ 'Start', $cnvword{$sp}.' start (UCSC)', 20],
+							3 =>	[ 'End', $cnvword{$sp}.' end (UCSC)', 20],
+							4 =>	[ 'Width', $cnvword{$sp}.' size (UCSC)', 15],
+							5 =>	[ 'Type', $cnvword{$sp}.' type (UCSC)', 20]	);
+
+				print HTMLO " <tr align=center bgcolor=".$colcol{'cnv'}."><b>";
+				foreach my $chi (sort {$a <=> $b} keys(%cheader)) {
+					print HTMLO '<th width='.${$cheader{$chi}}[2].'% title="'.${$cheader{$chi}}[1].'">'.${$cheader{$chi}}[0].'</th>';
+				}
+				print HTMLO '</b></tr>'."\n";
+
+				## CNVs VALUES
+				my %cmatch=();		## KEY : TYPES OF MATCH (left/right/in/over), VALUE : ORDERED SYMBOLS
+				foreach my $cid (sort { $a <=> $b } keys(%{$regions[$kr][$r][8]})) {
+
+					print HTMLO " <tr align=right bgcolor=".$colcol{'back'}.">";
+
+					## DGVid / SegDupid
+					my $cnvwrite = ${$regions[$kr][$r][8]{$cid}}[0];
+
+					## If CNV is not fully in, make it italic
+					if (${$regions[$kr][$r][8]{$cid}}[1] ne 'in') {
+						$cnvwrite = "<i>".$cnvwrite."</i>";
+					}
+					if ($sp eq 'hs') {
+						$cnvwrite = "<a href=".$links{$sp}{'var'}.${$regions[$kr][$r][8]{$cid}}[0]." target=_new>".$cnvwrite."</a>";
+					}
+					elsif ($sp eq 'mm') {
+						$cnvwrite = "<a href=".$links{$sp}{'var'}.${$regions[$kr][$r][8]{$cid}}[2].":".${$regions[$kr][$r][8]{$cid}}[3]."-".${$regions[$kr][$r][8]{$cid}}[4]." target=_new>".$cnvwrite."</a>";
+					}
+					print HTMLO "<td>".$cnvwrite."</td>";
+
+					## CHRA, Start, End, Width (formatted) + Type
+					print HTMLO "<td align=center>".${$regions[$kr][$r][8]{$cid}}[2]."</td><td>".&triplet(${$regions[$kr][$r][8]{$cid}}[3])."</td><td>".&triplet(${$regions[$kr][$r][8]{$cid}}[4])."</td><td>".&widthconv(${$regions[$kr][$r][8]{$cid}}[5])."</td><td>".${$regions[$kr][$r][8]{$cid}}[6]."</td>";
+					print HTMLO "</tr>\n";
+				}
+				print HTMLO "</table><br></div>\n";
+			}
+		}
+
+
+		## miRNAs TABLE
+		## BY REGIONS FOR MAIN TABLE
+		foreach my $r (0..$#{$regions[$kr]}) {
+		## IF THERE ARE miRNAs
+			if (scalar(keys(%{$regions[$kr][$r][9]})) > 0) {
+				print HTMLO '<!-- miRNAs table '.$r.' -->'."\n".'<div id=mir'.$r.' bloc'.$r.'='.$r.' style="display:none;">'."\n".'<br>'."\n".'<table border=0 width=98% align=center>'."\n";
+				## miRNAs HEADER
+				my %mheader = (		0 =>	[ $mirword{$sp}, $mirdesc{$sp}, 15],
+							1 =>	[ 'Chr', 'Chromosome (UCSC)', 10],
+							2 =>	[ 'Start', $mirword{$sp}.' start (UCSC)', 15],
+							3 =>	[ 'End', $mirword{$sp}.' end (UCSC)', 15],
+							4 =>	[ 'Width', $mirword{$sp}.' size (UCSC)', 10],
+							6 =>	[ 'Type', 'Type of small non-coding RNA (UCSC)', 15],
+							7 =>	[ 'Target Genes', 'Genes which expression is known or predicted to be altered by this microRNA (microRNA.org)', 20]	);
+
+				print HTMLO ' <tr align=center bgcolor='.$colcol{'mir'}.'><b>';
+				foreach my $mhi (sort {$a <=> $b} keys(%mheader)) {
+					print HTMLO '<th width='.${$mheader{$mhi}}[2].'% title="'.${$mheader{$mhi}}[1].'">'.${$mheader{$mhi}}[0].'</th>';
+				}
+				print HTMLO '</b></tr>'."\n";
+
+				## miRNAs VALUES
+				my %mmatch=();		## KEY : TYPES OF MATCH (left/right/in/over)
+				foreach my $mid (sort { $a <=> $b } keys(%{$regions[$kr][$r][9]})) {
+
+					print HTMLO " <tr align=right bgcolor=".$colcol{'back'}.">";
+
+					## mi/snoRNA name
+					my $mirwrite = ${$regions[$kr][$r][9]{$mid}}[0];
+
+					## If miR is not fully in, make it italic
+					if (${$regions[$kr][$r][9]{$mid}}[1] ne 'in') {
+						$mirwrite = "<i>".$mirwrite."</i>";
+					}
+					## Add a link to mirbase if the mir name contains "mir"
+					if (${$regions[$kr][$r][9]{$mid}}[0] =~ /mir/i) { $mirwrite = "<a href=".$links{$sp}{'mirbase'}.${$regions[$kr][$r][9]{$mid}}[0]." target=_new>".$mirwrite."</a>"; }
+
+					print HTMLO "<td>".$mirwrite."</td>";
+
+					## ChrA, Start, End, Width (formatted) + Score, Type
+					print HTMLO "<td align=center>".${$regions[$kr][$r][9]{$mid}}[2]."</td><td>".&triplet(${$regions[$kr][$r][9]{$mid}}[3])."</td><td>".&triplet(${$regions[$kr][$r][9]{$mid}}[4])."</td><td>".&widthconv(${$regions[$kr][$r][9]{$mid}}[5])."</td><td>".${$regions[$kr][$r][9]{$mid}}[7]."</td>";
+					## Link to microRNA.org (if we have a miR) for gene targets
+					my $targetword = '-';
+					if (${$regions[$kr][$r][9]{$mid}}[0] =~ /mir/i) {
+						my $mirtrans = ${$regions[$kr][$r][9]{$mid}}[0];
+						if ($mirtrans =~ /mir\-[0-9]+([a-z]|)\-[0-9]+$/) {
+							$mirtrans =~ s/\-[0-9]+$//;
+						}
+						$targetword = "<a href=".$links{$sp}{'mirorg'}.$mirtrans."&organism=".$ctdsp{$sp}." target=_new>microRNA.org</a>";
+					}
+					print HTMLO "<td align=center>".$targetword."</td>";
+					print HTMLO "</tr>\n";
+				}
+				print HTMLO "</table><br></div>\n";
+			}
+		}
+
+		## CpGislands TABLE
+		## BY REGIONS FOR MAIN TABLE
+		foreach my $r (0..$#{$regions[$kr]}) {
+		## IF THERE ARE CpGi
+			if (scalar(keys(%{$regions[$kr][$r][10]})) > 0) {
+				print HTMLO '<!-- CpGis table '.$r.' -->'."\n".'<div id=cpg'.$r.' bloc'.$r.'='.$r.' style="display:none;">'."\n".'<br>'."\n".'<table border=0 width=98% align=center>'."\n";
+				## CpGi HEADER
+				my %mheader = (		0 =>	[ 'CpG Island', 'CpG island ID (UCSC)', 10],
+							1 =>	[ 'Chr', 'Chromosome (UCSC)', 10],
+							2 =>	[ 'Start', 'CpG island start (UCSC)', 15],
+							3 =>	[ 'End', 'CpG island end (UCSC)', 15],
+							4 =>	[ 'Width', 'CpG island size (UCSC)', 10],
+							5 =>	[ 'CpG%', 'Rate of CpGs in the frame (UCSC)', 5],
+							6 =>	[ 'GC%', 'Rate of Gs or Cs in the frame (UCSC)', 5],
+							7 =>	[ 'Obs/Exp', 'Rate of observed CpGs over expected ones (UCSC)', 5],
+							8 =>	[ 'Close Genes (+/-1Kb)', 'Genes which are (at least partially) within a 1Kb window surrounding the CpG island (UCSC)', 20]	);
+
+				print HTMLO ' <tr align=center bgcolor='.$colcol{'cpg'}.'><b>';
+				foreach my $mhi (sort {$a <=> $b} keys(%mheader)) {
+					print HTMLO '<th width='.${$mheader{$mhi}}[2].'% title="'.${$mheader{$mhi}}[1].'">'.${$mheader{$mhi}}[0].'</th>';
+				}
+				print HTMLO '</b></tr>'."\n";
+
+				## CpGi VALUES
+				my %mmatch=();		## KEY : TYPES OF MATCH (left/right/in/over)
+				foreach my $mid (sort { $a <=> $b } keys(%{$regions[$kr][$r][10]})) {
+
+					print HTMLO " <tr align=right bgcolor=".$colcol{'back'}.">";
+
+					## CpGi name
+					my $cpgwrite = ${$regions[$kr][$r][10]{$mid}}[0];
+
+					## If CpG is not fully in, make it italic
+					if (${$regions[$kr][$r][10]{$mid}}[1] ne 'in') {
+						$cpgwrite = "<i>".$cpgwrite."</i>";
+					}
+					$cpgwrite = "<a href=".$links{$sp}{'cpg'}.${$regions[$kr][$r][10]{$mid}}[2].":".${$regions[$kr][$r][10]{$mid}}[3]."-".${$regions[$kr][$r][10]{$mid}}[4]." target=_new>".$cpgwrite."</a>";
+
+					print HTMLO "<td>".$cpgwrite."</td>";
+
+					## CHRA, Start, End, Width (formatted) + CpG%, GC%, close genes
+					print HTMLO "<td align=center>".${$regions[$kr][$r][10]{$mid}}[2]."</td><td>".&triplet(${$regions[$kr][$r][10]{$mid}}[3])."</td><td>".&triplet(${$regions[$kr][$r][10]{$mid}}[4])."</td><td>".&widthconv(${$regions[$kr][$r][10]{$mid}}[5])."</td><td>".${$regions[$kr][$r][10]{$mid}}[6]."%</td><td>".${$regions[$kr][$r][10]{$mid}}[7]."%</td><td>".${$regions[$kr][$r][10]{$mid}}[8]."</td><td>";
+
+					## Close genes
+					my $clogwrite = '-';
+					if (scalar(@{${$regions[$kr][$r][10]{$mid}}[9]}) > 0) {
+						$clogwrite = join(", ", @{${$regions[$kr][$r][10]{$mid}}[9]});
+					}
+
+					print HTMLO $clogwrite."</td>";
+					print HTMLO "</tr>\n";
+				}
+				print HTMLO "</table><br></div>\n";
+			}
+		}
+
+		## CLOSING THE CHR HTML PAGE
+		print HTMLO "</div><a name=page_bottom> </a>\n";
+		print HTMLO "</body>\n</html>";
+		close HTMLO;
+	}
+	close TXTGEN;
+}
+
+
+
+sub widthconv {
+	my $rw = shift;
+	if ($rw < 1000) {
+		return($rw.'b');
+	}
+	elsif ($rw <1000000) {
+		return(sprintf("%.2f", ($rw/1000)).'Kb');
+	}
+	else {
+		return(sprintf("%.2f", ($rw/1000000)).'Mb');
+	}
+}
+
+sub glntype {
+	my $tl2r = shift;
+	my $gls = 'N';
+	if ($tl2r < 0) {
+		$gls = 'L';
+	}
+	elsif ($tl2r > 0) {
+		$gls = 'G';
+	}
+	return $gls;
+}
+
+sub l2rformat {
+	my $l2rin = shift;
+	my $l2rf = sprintf("%.2f",$l2rin);
+	if ($l2rin >= $gcol) {
+		$l2rf = "<font color=".$statuscol{'G'}.">".$l2rf."</font>";
+	}
+	if ($l2rin <= $lcol) {
+		$l2rf = "<font color=".$statuscol{'L'}.">".$l2rf."</font>";
+	}
+	if (abs($l2rin) > $bold) {
+		$l2rf = "<b>".$l2rf."</b>";
+	}
+	return $l2rf;
+}
+
+sub triplet {
+	my @temp = reverse split '', shift;
+	my $r = '';
+	foreach my $x (0..$#temp) {
+		$r .= $temp[$x];
+		if  ( ( $x % 3 == 2 ) and ($x != $#temp) ) {
+			$r .= ',';
+		}
+	}
+	my @temp2 = reverse split '', $r;
+	my $r2 = '';
+	foreach (@temp2) {
+		$r2 .= $_;
+	}
+	return $r2 ;
+}

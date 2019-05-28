@@ -5,6 +5,7 @@ params:
   ldb: null
   nar: na33.r4
   nrf: 1.0
+  scripts: /home/tdayris/Documents/Developpement/cel-cnv-eacon/scripts
   segmenter: ASCAT
   ser_pen: 20
   smooth_k: 5
