@@ -110,7 +110,7 @@ if __name__ == '__main__':
     )
 
     args = main_parser.parse_args()
-    if guess_array_type(Path(args.rawdata)) == "cytoscan":
+    if guess_array_type(Path(args.rawdata)) == "CytoScanHD_Array":
         data = parse_cyto_dir(str(args.rawdata), args.eacon is True)
     else:
         data = parse_onco_dir(str(args.rawdata), args.eacon is True)
