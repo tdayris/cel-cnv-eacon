@@ -1,0 +1,13 @@
+params:
+  arraytype: CytoScanHD_Array
+  baf_filter: 0.75
+  genome: hg19
+  ldb: null
+  nar: na33.r4
+  nrf: 1.0
+  segmenter: ASCAT
+  ser_pen: 20
+  smooth_k: 5
+singularity_docker_image: docker://continuumio/miniconda3:4.4.10
+threads: 1
+workdir: .
