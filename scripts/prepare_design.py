@@ -15,18 +15,21 @@ def guess_array_type(raw_data: Path) -> str:
     """
     Guess array type, just like its name suggested
     """
-    onco = all(
-        # ATChannelCel files end with _A.CEL
-        # GCChannelCel files end with _C.CEL
-        f.name.endswith("(A|C).CEL")
-        for f in raw_data.iterdir()
-        if f.name .endswith("CEL")
-    )
+    raw_data = Path(raw_data)
+    if not raw_data.exists():
+        raise FileNotFoundError(f"Could not find: {str(raw_data)}")
 
-    # For now, no other array types are available
-    if onco is True:
-        return "oncoscan"
-    return "cytoscan"
+    array_type = None
+    for file in raw_data.iterdir():
+        is_cel = file.name.endswith("CEL")
+        is_onco = file.name.endswith("(A|C).CEL")
+        if is_cel and not is_onco:
+            array_type = "CytoScanHD_Array"
+            break
+    else:
+        array_type = "OncoScan_CNV"
+
+    return array_type
 
 
 def parse_cyto_dir(cytodir: str, strongr: bool = True) -> pd.DataFrame:
@@ -106,24 +109,11 @@ if __name__ == '__main__':
         action="store_false"
     )
 
-    # cel_type = main_parser.add_mutually_exclusive_group(required=True)
-    #
-    # cel_type.add_argument(
-    #     "-c", "--cytoscan",
-    #     help="The parsed repository contains Cytoscan data",
-    #     action='store_true'
-    # )
-    #
-    # cel_type.add_argument(
-    #     "-o", "--oncoscan",
-    #     help="The parsed repository contains Oncoscan data",
-    #     action="store_true"
-    # )
-
     args = main_parser.parse_args()
-    if guess_array_type == "cytoscan":
+    if guess_array_type(Path(args.rawdata)) == "cytoscan":
         data = parse_cyto_dir(str(args.rawdata), args.eacon is True)
     else:
         data = parse_onco_dir(str(args.rawdata), args.eacon is True)
 
+    print(data.head(), file=sys.stderr)
     data.to_csv(args.design, sep="\t", index=False)
