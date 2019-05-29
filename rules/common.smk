@@ -7,13 +7,14 @@ validations.
 import os.path as op
 import pandas as pd
 
+from snakemake.utils import validate
 from typing import Dict, List
 
 # Git prefix
 git = "https://bitbucket.org/tdayris/snakemake-wrappers/raw"
 
 # Loading configuration
-configfile: "config.yaml"
+# configfile: "config.yaml"
 validate(config, schema="../schemas/config.schema.yaml")
 
 # Loading design file
@@ -40,11 +41,11 @@ def EaCoN_in(wildcards) -> Dict[str, str]:
     """
     if is_cyto_bool is True:
         return {
-            "ATChannelCel": f"{wildcards.sample}_A.CEL",
-            "GCChannelCel": f"{wildcards.sample}_C.CEL
+            "ATChannelCel": f"raw_data/{wildcards.sample}_A.CEL",
+            "GCChannelCel": f"raw_data/{wildcards.sample}_C.CEL"
         }
     return {
-        "CEL": f"{wildcards.sample}.CEL"
+        "CEL": f"raw_data/{wildcards.sample}.CEL"
     }
 
 
@@ -84,7 +85,10 @@ def plot_qc() -> List[str]:
     if is_cyto_bool is True:
         return [
             "pairs.txt",
-            f"{config['arraytype']}_{config['genome']}_rawplot.png"
+            "{}_{}_rawplot.png".format(
+                config['params']['arraytype'],
+                config['params']['genome']
+            )
         ]
     return ["CELfile.txt"]
 

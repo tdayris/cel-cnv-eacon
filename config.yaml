@@ -1,14 +1,16 @@
+cold_storage: ../cold_storage.yaml
+design: design.tsv
 params:
-  arraytype: CytoScanHD_Array
-  baf_filter: 0.75
+  arraytype: OncoScan_CNV
+  baf_filter: 0.9
   genome: hg19
-  ldb: null
-  nar: na33.r4
-  nrf: 1.0
+  ldb: /home/tdayris/Documents/Clusters/cigogne_data/
+  nar: na33.r2
+  nrf: 0.5
   scripts: /home/tdayris/Documents/Developpement/cel-cnv-eacon/scripts
   segmenter: ASCAT
-  ser_pen: 20
-  smooth_k: 5
+  ser_pen: 40
+  smooth_k: NULL
 singularity_docker_image: docker://continuumio/miniconda3:4.4.10
 threads: 1
 workdir: .

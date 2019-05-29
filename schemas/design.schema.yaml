@@ -1,0 +1,16 @@
+$schema: "http://json-schema.org/draft-04/schema#"
+
+description: An entry in the sample sheet
+
+proprerties:
+  Sample_id:
+    type: string
+  CEL:
+    type: string
+  ATChannelCel:
+    type: string
+  GCChannelCel:
+    type: string
+
+required:
+  - Sample_id

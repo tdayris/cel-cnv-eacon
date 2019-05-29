@@ -1,0 +1,59 @@
+$schema: "http://json-schema.org/draft-04/schema#"
+
+description: Snakemake configuration file
+
+type: object
+
+proprerties:
+  workdir:
+    type: string
+  threads:
+    type: integer
+  singularity_docker_image:
+    type: string
+  cold_storage:
+    type: array
+    items:
+      type: string
+    uniqueItems: true
+    minItems: 1
+
+params:
+  type: object
+  proprerties:
+    arraytype:
+      type: string
+    baf_filter:
+      type: float
+    genome:
+      type: string
+    ldb:
+      type: string
+    nar:
+      type: string
+    nrf:
+      type: string
+    scripts:
+      type: string
+    segmenter:
+      type: string
+    ser_pen:
+      type: integer
+    smooth_k:
+      type: integer
+    required:
+      - arraytype
+      - baf_filter
+      - genome
+      - nar
+      - nrf
+      - scripts
+      - segmenter
+      - ser_pen
+      - smooth_k
+
+required:
+  - threads
+  - params
+  - singularity_docker_image
+  - workdir
