@@ -22,7 +22,7 @@ def guess_array_type(raw_data: Path) -> str:
     array_type = None
     for file in raw_data.iterdir():
         is_cel = file.name.endswith("CEL")
-        is_onco = file.name.endswith("(A|C).CEL")
+        is_onco = file.name.endswith("C.CEL") or file.name.endswith("A.CEL")
         if is_cel and not is_onco:
             array_type = "CytoScanHD_Array"
             break

@@ -23,7 +23,7 @@ def guess_array_type(raw_data: Path) -> str:
     array_type = None
     for file in raw_data.iterdir():
         is_cel = file.name.endswith("CEL")
-        is_onco = file.name.endswith("(A|C).CEL")
+        is_onco = file.name.endswith("C.CEL") or file.name.endswith("A.CEL")
         if is_cel and not is_onco:
             array_type = "CytoScanHD_Array"
             break
@@ -73,6 +73,21 @@ if __name__ == '__main__':
         help="Maximum number of threads used (default: %(default)s)",
         type=int,
         default=1
+    )
+
+    main_parser.add_argument(
+        "-d", "--design",
+        help="Path to the design file (default: %(default)s)",
+        type=str,
+        default="design.tsv"
+    )
+
+    main_parser.add_argument(
+        "--coldstorage",
+        help="Path to cold storage mount points (default: %(default)s)",
+        type=str,
+        default="/data",
+        nargs="+"
     )
 
     main_parser.add_argument(
@@ -152,7 +167,9 @@ if __name__ == '__main__':
         "singularity_docker_image": args.singularity,
         "workdir": args.workdir,
         "threads": args.threads,
-        "params": config_params
+        "params": config_params,
+        "design": args.design,
+        "cold_storage": args.coldstorage
     }
 
     output_path = Path(args.workdir) / "config.yaml"
