@@ -3,7 +3,7 @@
 library("EaCoN");
 
 smooth_k <- base::as.numeric(snakemake@config[["params"]][["smooth_k"]]);
-if (is.null(snakemake@config[["params"]][["smooth_k"]])) {
+if ((is.null(snakemake@config[["params"]][["smooth_k"]])) | (snakemake@config[["params"]][["smooth_k"]] == 'NULL')) {
   smooth_k <- NULL;
 }
 
