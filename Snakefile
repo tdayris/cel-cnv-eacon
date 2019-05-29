@@ -19,19 +19,41 @@ localrules: copy_cel
 
 rule all:
     input:
+        # Copy/link cell files
+        # cel = expand("raw_data/{sample}", sample=cel_link_dict.keys()),
+        # EaCoN process
+        # rds = expand(
+        #     op.join(
+        #         "{sample}",
+        #         "{sample}_{}_{}_processed.RDS".format(
+        #             config['params']['arraytype'],
+        #             config['params']['genome'],
+        #             sample="{sample}"
+        #         )
+        #     ),
+        #     sample=design["Sample_id"]
+        # ),
+        # EaCoN Segment
+        # seg_rds = expand(
+        #     os.sep.join([
+        #         "{sample}", config["params"]["segmenter"], "L2R",
+        #         f"{{sample}}.SEG.{config['params']['segmenter']}.RDS"
+        #     ]),
+        #     sample=design["Sample_id"]
+        # ),
+        # EaCoN models
+        ascn = expand(
+            os.sep.join(["{sample}", config["params"]["segmenter"],
+                         "ASCN", "{sample}.gammaEval.png"]),
+            sample=design["Sample_id"]
+        ),
+        # EaCoN annotate
         html = expand(
             os.path.sep.join([
-                "{sample}", config["segmenter"], "L2R", "{sample}.REPORT.html"
+                "{sample}", config["params"]["segmenter"], "L2R",
+                "{sample}.REPORT.html"
             ]),
-            sample=sample_id_list
-        ),
-        gamma_ascat = expand(
-            os.sep.join([
-                "{sample}",
-                config["segmenter"],
-                "ASCN"
-            ]),
-            sample=config["Sample_id"]
+            sample=design["Sample_id"]
         )
     message:
         "Finishing the EaCoN pipeline"
