@@ -1,1 +1,1 @@
-Complete RMarkdown report for {{ snakemake.output.html }}
+Complete RMarkdown report for {{ snakemake.wildcards.sample }}
