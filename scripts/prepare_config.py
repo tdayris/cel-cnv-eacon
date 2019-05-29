@@ -86,8 +86,7 @@ if __name__ == '__main__':
         "--coldstorage",
         help="Path to cold storage mount points (default: %(default)s)",
         type=str,
-        default="/data",
-        nargs="+"
+        default="cold_storage.yaml"
     )
 
     main_parser.add_argument(
