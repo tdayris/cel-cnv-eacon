@@ -4,6 +4,4 @@ This is the [Snakemake](https://academic.oup.com/bioinformatics/article/28/19/25
 
 Each tool belong to their respective authors.
 
-Currently under active development, this pipeline is not intended to be used.
-
 See [wiki](https://github.com/tdayris/cel-cnv-eacon/wiki) for more information.
