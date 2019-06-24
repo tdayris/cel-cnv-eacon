@@ -7,6 +7,7 @@ if ("ATChannelCel" %in% names(snakemake@input)) {
     ATChannelCel = snakemake@input[["ATChannelCel"]],
     GCChannelCel = snakemake@input[["GCChannelCel"]],
     samplename = snakemake@wildcards[["sample"]],
+    apt.build = snakemake@config[["nar"]],
     force = TRUE
   );
 } else {
