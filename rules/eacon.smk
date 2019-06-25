@@ -89,6 +89,9 @@ rule EaCoN_segment:
     resources:
         mem_mb = (
             lambda wildcards, attempt: min(attempt * 4096, 5120)
+        ),
+        time_min = (
+            lambda wildcards, attempt: min(attempt * 45, 180)
         )
     log:
         "logs/EaCoN/{sample}_Segmentation.log"
@@ -129,6 +132,9 @@ rule EaCoN_ascn:
     resources:
         mem_mb = (
             lambda wildcards, attempt: min(attempt * 3072, 5120)
+        ),
+        time_min = (
+            lambda wildcards, attempt: min(attempt * 45, 180)
         )
     log:
         "logs/EaCoN/{sample}_ascn.log"
@@ -183,7 +189,10 @@ rule EaCoN_Annotate:
         "env/eacon_dependencies.yaml"
     resources:
         mem_mb = (
-            lambda wildcards, attempt: min(attempt * 1024, 5120)
+            lambda wildcards, attempt: min(attempt * 2048, 10240)
+        )
+        time_min = (
+            lambda wildcards, attempt: min(attempt * 45, 180)
         )
     log:
         "logs/EaCoN/{sample}_annotate.log"
