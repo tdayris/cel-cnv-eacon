@@ -27,7 +27,7 @@ if __name__ == '__main__':
 
     main_parser.add_argument(
         "-o", "--output",
-        help="Path to output file",
+        help="Path to output file (default: %(default)s)",
         type=str,
         default="cold_storage.yaml"
     )

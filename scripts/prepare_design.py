@@ -90,14 +90,14 @@ if __name__ == '__main__':
 
     main_parser.add_argument(
         "-r", "--rawdata",
-        help="Path to raw data directory",
+        help="Path to raw data directory (default: %(default)s)",
         type=str,
         default="."
     )
 
     main_parser.add_argument(
         "-d", "--design",
-        help="Output path to design file",
+        help="Output path to design file (default: %(default)s)",
         type=str,
         default="design.tsv"
     )
