@@ -190,7 +190,7 @@ rule EaCoN_Annotate:
     resources:
         mem_mb = (
             lambda wildcards, attempt: min(attempt * 2048, 10240)
-        )
+        ),
         time_min = (
             lambda wildcards, attempt: min(attempt * 45, 180)
         )
