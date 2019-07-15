@@ -189,7 +189,7 @@ rule EaCoN_Annotate:
         "env/eacon_dependencies.yaml"
     resources:
         mem_mb = (
-            lambda wildcards, attempt: min(attempt * 2048, 10240)
+            lambda wildcards, attempt: min(attempt * 4096, 10240)
         ),
         time_min = (
             lambda wildcards, attempt: min(attempt * 45, 180)
