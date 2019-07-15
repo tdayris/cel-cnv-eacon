@@ -28,7 +28,7 @@ rule EaCoN_process:
         "Processing {wildcards.sample} CEL file(s)"
     resources:
         mem_mb = (
-            lambda wildcards, attempt: min(attempt * 4096, 5120)
+            lambda wildcards, attempt: min(attempt * 1024 + 5120, 7168)
         ),
         time_min = (
             lambda wildcards, attempt: min(attempt * 60, 240)
