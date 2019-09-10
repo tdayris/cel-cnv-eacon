@@ -143,6 +143,7 @@ if __name__ == '__main__':
         "ldb": args.ldb,
         "scripts": str(Path(__file__).parent)
     }
+
     if guess_array_type(Path(args.rawdata)) == "CytoScanHD_Array":
         config_params.update(**{
             "arraytype": "CytoScanHD_Array",
@@ -168,7 +169,11 @@ if __name__ == '__main__':
         "threads": args.threads,
         "params": config_params,
         "design": args.design,
-        "cold_storage": args.coldstorage
+        "cold_storage": (
+            args.coldstorage
+            if isinstance(args.coldstorage, list)
+            else [args.coldstorage]
+        )
     }
 
     output_path = Path(args.workdir) / "config.yaml"
