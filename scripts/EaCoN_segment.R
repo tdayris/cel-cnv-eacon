@@ -14,5 +14,6 @@ EaCoN::Segment.ff(
   BAF.filter = base::as.numeric(snakemake@config[["params"]][["baf_filter"]]),
   SER.pen = base::as.numeric(snakemake@config[["params"]][["ser_pen"]]),
   nrf = base::as.numeric(snakemake@config[["params"]][["nrf"]]),
+  penalty = base::as.numeric(snakemake@config[["params"]][["penalty"]]),
   force = TRUE
 );

@@ -129,6 +129,13 @@ if __name__ == '__main__':
     )
 
     main_parser.add_argument(
+        "--penalty",
+        help="Inverted penalty on new segment creation (50)",
+        type=int,
+        default=50
+    )
+
+    main_parser.add_argument(
         "--baf_filter",
         help="Perform a filtering of BAF noise "
              "(default depend on array type)",
@@ -141,7 +148,8 @@ if __name__ == '__main__':
         "segmenter": args.segmenter,
         "genome": args.genome,
         "ldb": args.ldb,
-        "scripts": str(Path(__file__).parent)
+        "scripts": str(Path(__file__).parent),
+        "penalty": args.penalty
     }
 
     if guess_array_type(Path(args.rawdata)) == "CytoScanHD_Array":
