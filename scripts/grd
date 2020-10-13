@@ -535,10 +535,10 @@ my $ticfile = $ldb.'/TICdb/TICdbTable_v3.2.txt';
 
 ## Chimerdb 2.0 annotations for fusion genes *HUMAN ONLY* (v1.0 for mm & rn)
 my %chimdbfile = (
-	'hs' =>		$ldb.'/chimerdb/v2.0/PO_down_concat.txt',
-	'mm' =>		$ldb.'/chimerdb/v1.0/mm5_chimerdbSymbol.txt',
-	'rn' =>		$ldb.'/chimerdb/v1.0/rn3_chimerdbSymbol.txt'
-	);
+	'hs' =>		$ldb.'/chimerdb/v2.0/PO_down_concat.txt.csv',
+ 	'mm' =>		$ldb.'/chimerdb/v1.0/mm5_chimerdbSymbol.txt',
+ 	'rn' =>		$ldb.'/chimerdb/v1.0/rn3_chimerdbSymbol.txt'
+);
 
 
 ## Cancer genes files (from COSMIC CancerCensus, ...)
@@ -594,7 +594,7 @@ my %bgcoltype = ( 'L' => '#EE9090', 'G' => '#90EEEE' );
 ## LOADING CHR / CYTOBANDS
 print "\nImporting UCSC CytoBands data ...\n";
 my @cytob=();
-# print $cytopath{$gv}."\n";
+print $cytopath{$gv}."\n";
 open CYTO, $cytopath{$gv} or die $!;
 while (my $l=<CYTO>) {
 	$l =~ s/\n//;
@@ -661,8 +661,8 @@ if ($sp eq 'hs') {
 		$l =~ s/\r//;
 		if ($l !~ /^hgnc_id/) {
 			my @temp = split /\t/, $l;
-			if ($temp[5] eq 'Approved') {
-				$offsymb{$temp[1]} = $temp[2];
+			if ($temp[3] eq 'Approved') {
+				$offsymb{$temp[1]} = $temp[11];
 			}
 		}
 	}
@@ -1003,24 +1003,24 @@ if ($sp eq 'hs') {
 	}
 }
 ## LOADING CHIMERDB FUSION GENES
-print "Importing ChimerDB fusion genes list ...\n";
-open CHIMGEN, $chimdbfile{$sp} or die $!;
-while (my $l=<CHIMGEN>) {
-	$l =~ s/\n//;
-	$l =~ s/\r//;
-	if ($l !~ /^\#/) {
-		my @temp = split /\t/, $l;
-		if ($sp eq 'hs') {
-			$fusgenhash{$temp[0]}++;
-			$fusgenhash{$temp[1]}++;
-		}
-		elsif ($sp eq 'mm') {
-			$fusgenhash{$temp[9]}++;
-			$fusgenhash{$temp[11]}++;
-		}
-	}
-}
-close CHIMGEN;
+# print "Importing ChimerDB fusion genes list ...\n";
+# open CHIMGEN, $chimdbfile{$sp} or die $!;
+# while (my $l=<CHIMGEN>) {
+# 	$l =~ s/\n//;
+# 	$l =~ s/\r//;
+# 	if ($l !~ /^\#/) {
+# 		my @temp = split /\t/, $l;
+# 		if ($sp eq 'hs') {
+# 			$fusgenhash{$temp[0]}++;
+# 			$fusgenhash{$temp[1]}++;
+# 		}
+# 		elsif ($sp eq 'mm') {
+# 			$fusgenhash{$temp[9]}++;
+# 			$fusgenhash{$temp[11]}++;
+# 		}
+# 	}
+# }
+# close CHIMGEN;
 #####
 
 
