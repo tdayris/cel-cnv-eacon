@@ -11,7 +11,7 @@ from snakemake.utils import validate
 from typing import Dict, List
 
 # Git prefix
-git = "https://bitbucket.org/tdayris/snakemake-wrappers/raw"
+git = "https://raw.githubusercontent.com/tdayris/snakemake-wrappers/Unofficial"
 
 # Loading configuration
 # configfile: "config.yaml"
