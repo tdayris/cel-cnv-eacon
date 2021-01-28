@@ -6,6 +6,7 @@ This script aims to prepare the yaml-formatted config file for
 EaCoN cnv analysis
 """
 
+import os
 import yaml
 
 from argparse import ArgumentParser
@@ -44,7 +45,7 @@ if __name__ == '__main__':
         "-r", "--rawdata",
         help="Path to raw data directory (default: %(default)s)",
         type=str,
-        default="."
+        default=os.getcwd()
     )
 
     main_parser.add_argument(
@@ -58,14 +59,14 @@ if __name__ == '__main__':
         "--ldb",
         help="Path to ldb for supplementary analyses",
         type=str,
-        default=None
+        default="${LBD_PATH}"
     )
 
     main_parser.add_argument(
         "-w", "--workdir",
         help="Path to working directory (default: %(default)s)",
         type=str,
-        default="."
+        default=os.getcwd()
     )
 
     main_parser.add_argument(

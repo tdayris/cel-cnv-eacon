@@ -37,8 +37,8 @@ rule EaCoN_process:
         1
     priority:
         30
-    conda:
-        "env/eacon_dependencies.yaml"
+    #conda:
+    #    "env/eacon_dependencies.yaml"
     wildcard_constraints:
         sample = r"[^/]+"
     log:
@@ -84,14 +84,14 @@ rule EaCoN_segment:
     message:
         "Segmentation of {wildcards.sample} normalized data"
     threads: 1
-    conda:
-        "env/eacon_dependencies.yaml"
+    #conda:
+    #    "env/eacon_dependencies.yaml"
     resources:
         mem_mb = (
             lambda wildcards, attempt: min(attempt * 4096, 5120)
         ),
         time_min = (
-            lambda wildcards, attempt: min(attempt * 45, 180)
+            lambda wildcards, attempt: min(attempt * 60, 180)
         )
     log:
         "logs/EaCoN/{sample}_Segmentation.log"
@@ -127,11 +127,11 @@ rule EaCoN_ascn:
     message:
         "Building copy number models for {wildcards.sample}"
     threads: 1
-    conda:
-        "env/eacon_dependencies.yaml"
+    #conda:
+    #    "env/eacon_dependencies.yaml"
     resources:
         mem_mb = (
-            lambda wildcards, attempt: min(attempt * 3072, 5120)
+            lambda wildcards, attempt: min(attempt * 4096, 5120)
         ),
         time_min = (
             lambda wildcards, attempt: min(attempt * 45, 180)
@@ -185,8 +185,8 @@ rule EaCoN_Annotate:
     message:
         "Reporting data for {wildcards.sample}"
     threads: 1
-    conda:
-        "env/eacon_dependencies.yaml"
+    #conda:
+    #    "env/eacon_dependencies.yaml"
     resources:
         mem_mb = (
             lambda wildcards, attempt: min(attempt * 4096, 10240)

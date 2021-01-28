@@ -1,0 +1,19 @@
+restart-times: 3
+jobscript: "slurm-jobscript.sh"
+cluster: "slurm-submit.py"
+cluster-status: "slurm-status.py"
+max-jobs-per-second: 1
+max-status-checks-per-second: 10
+local-cores: 8
+jobs: 100
+keep-going: true
+reason: true
+printshellcmds: true
+jobname: "{name}.{jobid}.snakejob.sh"
+conda-prefix: /mnt/beegfs/pipelines/cel-cnv-eacon/conda/
+#singularity-prefix: /mnt/beegfs/pipelines/cel-cnv-eacon/singularity/
+wrapper-prefix: https://raw.githubusercontent.com/tdayris/snakemake-wrappers/Unofficial
+#use-singularity: true
+use-conda: true
+#resources: mem_mb=20480
+cache: eacon_install eacon_databases

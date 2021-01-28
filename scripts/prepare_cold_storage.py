@@ -19,10 +19,11 @@ if __name__ == '__main__':
     )
 
     main_parser.add_argument(
-        "path",
+        "--path", "-p",
         help="Space separated list of paths to cold storage points",
         type=str,
-        nargs="+"
+        nargs="+",
+        default="/mnt/isilon"
     )
 
     main_parser.add_argument(

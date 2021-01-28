@@ -5,6 +5,7 @@
 This script aims to prepare the design file for EaCoN cnv analysis
 """
 
+import os                            # Paths and os funcitons
 import pandas as pd                  # Parse TSV files
 import sys                           # System related methods
 from argparse import ArgumentParser  # Parse command line
@@ -92,7 +93,7 @@ if __name__ == '__main__':
         "-r", "--rawdata",
         help="Path to raw data directory (default: %(default)s)",
         type=str,
-        default="."
+        default=os.getcwd()
     )
 
     main_parser.add_argument(
@@ -105,7 +106,7 @@ if __name__ == '__main__':
     main_parser.add_argument(
         "-e", "--eacon",
         help="Design file is meant to be used by EaCoN itself, "
-             "and not STRonGR",
+             "and not this snakemake pipeline",
         action="store_false"
     )
 
