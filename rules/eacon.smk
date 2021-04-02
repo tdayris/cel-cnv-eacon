@@ -143,6 +143,39 @@ rule EaCoN_ascn:
 
 
 """
+This rule covers instability score
+"""
+rule EaCoN_GIS:
+    input:
+        gama_eval_png = report(
+            os.sep.join(["{sample}", config["params"]["segmenter"],
+                         "ASCN", "{sample}.gammaEval.png"]),
+            category="ASCN Model",
+            caption="../report/ascn.rst"
+        ),
+        gama_eval_txt = os.sep.join([
+            "{sample}", config["params"]["segmenter"],
+            "ASCN", "{sample}.gammaEval.txt"
+        ])
+    output:
+        "{sample}/{sample}_GIS_from_best_gamma.txt"
+    threads: 1
+    #conda:
+    #    "env/eacon_dependencies.yaml"
+    resources:
+        mem_mb = (
+            lambda wildcards, attempt: min(attempt * 4096, 5120)
+        ),
+        time_min = (
+            lambda wildcards, attempt: min(attempt * 45, 180)
+        )
+    log:
+        "logs/EaCoN/{sample}_ascn.log"
+    wrapper:
+        "/bio/eacon/instability"
+
+
+"""
 This rule writes a HTML report
 """
 rule EaCoN_Annotate:

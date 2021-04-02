@@ -54,6 +54,10 @@ rule all:
                 "{sample}.REPORT.html"
             ]),
             sample=design["Sample_id"]
+        ),
+        instability = expand(
+            "{sample}/{sample}_GIS_from_best_gamma.txt",
+            sample=design["Sample_id"]
         )
     message:
         "Finishing the EaCoN pipeline"
