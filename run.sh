@@ -1,12 +1,10 @@
 #!/bin/bash
 set -ei
 
-CONDA_YAML="/mnt/beegfs/pipelines/cel-cnv-eacon/pipeline/cel-cnv-eacon/envs/eacon_flamingo.yaml"
-
 declare -x LDB_PATH="/mnt/beegfs/pipelines/cel-cnv-eacon/pipeline/databases"
 declare -x PROFILE="/mnt/beegfs/pipelines/cel-cnv-eacon/pipeline/cel-cnv-eacon/.igr/profiles/slurm"
 declare -x PIPELINE_PATH="/mnt/beegfs/pipelines/cel-cnv-eacon/pipeline/cel-cnv-eacon"
-declare -x ENV_PATH="/mnt/beegfs/userdata/t_dayris/anaconda3/envs/mamba/envs/r-eacon/"
+declare -x ENV_PATH="/mnt/beegfs/pipelines/rna-count-salmon/env"
 declare -x SNAKEMAKE_OUTPUT_CACHE="/mnt/beegfs/pipelines/cel-cnv-eacon/cache/"
 export LDB_PATH PROFILE PIPELINE_PATH ENV_PATH SNAKEMAKE_OUTPUT_CACHE
 
@@ -20,6 +18,8 @@ function message() {
   # Classic switch based on status
   if [ ${status} = INFO ]; then
     echo -e "\033[1;36m@INFO:\033[0m ${message}"
+  elif [ ${status} = WARNING ]; then
+    echo -e "\033[1;33m@WARNING:\033[0m ${message}"
   elif [ ${status} = ERROR ]; then
     echo -e "\033[41m@ERROR:\033[0m ${message}"
   elif [ ${status} = DOC ]; then
@@ -111,15 +111,17 @@ function upload() {
 [[ $# -gt 0 ]] && help_message
 
 CONDA='conda'
-which mamba &> /dev/null && CONDA="mamba" || message INFO "Mamba not found, falling back to conda."
+CONDA_VERSION="$(conda --version)"
+[ "${CONDA_VERSION:?}" = "conda 4.9.2" ] || message WARNING "Your version of conda might not be up to date. Trying anyway with the rest of the pipeline."
+which mamba > /dev/null 2>&1 && CONDA="mamba" || message WARNING "Mamba not found, falling back to conda."
 
 # Loading conda
 message INFO "Sourcing conda for users who did not source it before."
 source "$(conda info --base)/etc/profile.d/conda.sh" && conda activate || exit error_handling "${LINENO}" 1 "Could not source conda environment."
 
 # Activate environment
-message INFO "Loading ${ENV_PATH} environment"
-conda activate "${ENV_PATH}" || error_handling "${LINENO}" 2 "Could not activate the conda environment."
+message INFO "Loading ${ENV_PATH:?} environment"
+conda activate "${ENV_PATH:?}" || error_handling "${LINENO}" 2 "Could not activate the conda environment."
 
 # then installation process did not work properly
 message INFO "Running pipeline if and only if it is possible"
